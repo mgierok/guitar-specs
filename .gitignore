@@ -1,0 +1,37 @@
+
+# .gitignore for Go projects
+
+# Compiled binary files
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binaries and outputs
+*.test
+*.out
+coverage.out
+*.cov
+
+# Dependency directories (if you use vendoring)
+vendor/
+Godeps/
+
+# Module/workspace files
+go.work
+go.work.sum
+
+# Build artefacts and package dirs
+bin/
+pkg/
+GOMODCACHE/
+go-build/
+GOCACHE/
+
+# IDE / editor directories and project files
+.vscode/
+.idea/
+*.iml
+
+# System files
+.DS_Store
