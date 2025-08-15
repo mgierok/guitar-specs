@@ -75,6 +75,10 @@ func New(cfg Config) *App {
 		}
 	} else {
 		logger.Info("asset versions built successfully", "count", len(versions))
+		// Log information about large files that were skipped
+		if len(versions) > 0 {
+			logger.Debug("asset versioning completed", "processed_files", len(versions), "max_file_size", "10MB")
+		}
 	}
 
 	// Helper function for templates to append version hash to asset URLs
