@@ -47,14 +47,26 @@ func LoadConfig() Config {
 	enableHTTPS := getenv("ENABLE_HTTPS", "false") == "true"
 	redirectHTTP := getenv("REDIRECT_HTTP", "true") == "true"
 
-	return Config{
+	// Validate logical configuration consistency
+	if redirectHTTP && !enableHTTPS {
+		// HTTP redirect only makes sense when HTTPS is enabled
+		redirectHTTP = false
+	}
+
+	// Set default port based on HTTPS configuration
+	defaultPort := "8080"
+	if enableHTTPS {
+		defaultPort = "8443"
+	}
+
+	cfg := Config{
 		Host:         getenv("HOST", "0.0.0.0"),    // Bind to all network interfaces
-		Port:         getenv("PORT", "8080"),       // Standard development port
+		Port:         getenv("PORT", defaultPort),  // Port based on HTTPS configuration
 		Env:          getenv("ENV", "development"), // Default to development mode
 		EnableHTTPS:  enableHTTPS,                  // Enable HTTPS if ENABLE_HTTPS=true
 		CertFile:     getenv("SSL_CERT_FILE", ""),  // SSL certificate file path
 		KeyFile:      getenv("SSL_KEY_FILE", ""),   // SSL private key file path
-		RedirectHTTP: redirectHTTP,                 // Redirect HTTP to HTTPS (configurable)
+		RedirectHTTP: redirectHTTP,                 // Redirect HTTP to HTTPS (only when HTTPS enabled)
 
 		// Advanced configuration options
 		ReadTimeout:       getDuration("READ_TIMEOUT", 10*time.Second),
@@ -71,6 +83,8 @@ func LoadConfig() Config {
 		// HTTP redirect server configuration
 		HTTPRedirectPort: getInt("HTTP_REDIRECT_PORT", 8080), // Use port 8080 for development
 	}
+
+	return cfg
 }
 
 // Addr returns the formatted address string for the HTTP server.
@@ -129,6 +143,11 @@ func (c Config) ValidateHTTPS() error {
 	// Check if private key file exists and is readable
 	if _, err := os.Stat(c.KeyFile); os.IsNotExist(err) {
 		return fmt.Errorf("SSL private key file not found: %s", c.KeyFile)
+	}
+
+	// Validate logical consistency
+	if c.RedirectHTTP && !c.EnableHTTPS {
+		return fmt.Errorf("HTTP redirect enabled but HTTPS is disabled - this configuration is invalid")
 	}
 
 	return nil
