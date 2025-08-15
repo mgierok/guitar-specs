@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
@@ -39,6 +40,10 @@ func New(cfg Config) *App {
 	r.Use(mw.SlogLogger(logger))
 	r.Use(chimw.Timeout(mw.DefaultTimeout))
 	r.Use(mw.SecurityHeaders)
+
+	// Rate limiting: 100 requests per minute per IP
+	rateLimiter := mw.NewRateLimiter(100, time.Minute)
+	r.Use(rateLimiter.RateLimit)
 
 	// Compute per-file hashes for static assets
 	sub, _ := fs.Sub(web.StaticFS, "static")
