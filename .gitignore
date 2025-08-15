@@ -1,37 +1,41 @@
-
-# .gitignore for Go projects
-
-# Compiled binary files
+# Ignore compiled Go binaries
 *.exe
 *.dll
 *.so
 *.dylib
-
-# Test binaries and outputs
 *.test
 *.out
-coverage.out
-*.cov
 
-# Dependency directories (if you use vendoring)
-vendor/
-Godeps/
+# Build output directories
+/bin/
+/build/
+/dist/
 
-# Module/workspace files
-go.work
-go.work.sum
+# Temporary and log files
+*.log
+*.tmp
+*.swp
+*.swo
 
-# Build artefacts and package dirs
-bin/
-pkg/
-GOMODCACHE/
-go-build/
-GOCACHE/
-
-# IDE / editor directories and project files
-.vscode/
+# Editor and IDE settings
 .idea/
+.vscode/
 *.iml
 
-# System files
+# Operating system specific clutter
 .DS_Store
+Thumbs.db
+
+# Go-related files
+# go.sum is usually required for reproducible builds, so do not ignore it
+# Ignore workspace files if not needed in version control
+go.work
+go.work.sum
+*.coverprofile
+
+# Dependency vendoring (only ignore if you do not vendor dependencies intentionally)
+vendor/
+
+# Dev files
+tags
+tags.lock
