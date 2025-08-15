@@ -19,11 +19,24 @@ func SecurityHeaders(next http.Handler) http.Handler {
 		// Referrer policy
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 
-		// Content Security Policy
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self';")
+		// Tightened Content Security Policy (without unsafe-inline)
+		w.Header().Set("Content-Security-Policy",
+			"default-src 'self'; "+
+				"script-src 'self'; "+
+				"style-src 'self'; "+
+				"img-src 'self' data:; "+
+				"font-src 'self'; "+
+				"object-src 'none'; "+
+				"base-uri 'self'; "+
+				"frame-ancestors 'none'")
 
 		// Permissions Policy
 		w.Header().Set("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+
+		// HSTS only for HTTPS
+		if r.TLS != nil {
+			w.Header().Set("Strict-Transport-Security", "max-age=15552000; includeSubDomains; preload")
+		}
 
 		next.ServeHTTP(w, r)
 	})
