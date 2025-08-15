@@ -83,6 +83,9 @@ func New(cfg Config) *App {
 	// Pages (dynamic): apply compression only here.
 	pages := h.New(ren, web.RobotsFS)
 	r.Group(func(r chi.Router) {
+		// Add ETag for better caching (BEFORE compression)
+		r.Use(mw.ETag)
+
 		// British English: compress dynamic responses; static assets are handled elsewhere.
 		r.Use(chimw.Compress(5,
 			"text/html", "text/css", "application/javascript",
