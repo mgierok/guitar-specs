@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends brotli && rm -r
 RUN make assets-precompress
 
 # Build the app
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/web ./cmd/web
+RUN go generate ./... && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/web ./cmd/web
 
 # Run stage
 FROM gcr.io/distroless/base-debian12
