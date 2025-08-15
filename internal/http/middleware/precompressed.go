@@ -7,12 +7,24 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"sync"
+	"time"
 )
 
 // PrecompressedFileServer serves files, preferring pre-compressed variants (.br → .gz) when the client supports them.
 // Comments in British English as requested.
 func PrecompressedFileServer(root fs.FS) http.Handler {
 	base := http.FileServer(http.FS(root))
+
+	// Cache for file existence checks to avoid repeated fs.Stat calls
+	type cacheEntry struct {
+		exists bool
+		time   time.Time
+	}
+
+	cache := make(map[string]cacheEntry)
+	var cacheMu sync.RWMutex
+	const cacheTTL = 5 * time.Minute
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Only optimised for GET/HEAD; fall back for others
@@ -31,9 +43,28 @@ func PrecompressedFileServer(root fs.FS) http.Handler {
 		supportsBR := strings.Contains(ae, "br")
 		supportsGZ := strings.Contains(ae, "gzip")
 
+		// Check cache first for Brotli
+		cacheKey := clean + ".br"
+		cacheMu.RLock()
+		entry, exists := cache[cacheKey]
+		cacheMu.RUnlock()
+
 		// Attempt Brotli first (best compression & widely supported by modern browsers)
 		if supportsBR {
-			if _, err := fs.Stat(root, clean+".br"); err == nil {
+			var brExists bool
+			if exists && time.Since(entry.time) < cacheTTL {
+				brExists = entry.exists
+			} else {
+				if _, err := fs.Stat(root, clean+".br"); err == nil {
+					brExists = true
+				}
+				// Update cache
+				cacheMu.Lock()
+				cache[cacheKey] = cacheEntry{exists: brExists, time: time.Now()}
+				cacheMu.Unlock()
+			}
+
+			if brExists {
 				// Set Content-Type based on the original (uncompressed) extension
 				if ctype := mime.TypeByExtension(path.Ext(clean)); ctype != "" {
 					w.Header().Set("Content-Type", ctype)
@@ -52,9 +83,28 @@ func PrecompressedFileServer(root fs.FS) http.Handler {
 			}
 		}
 
+		// Check cache for gzip
+		cacheKeyGz := clean + ".gz"
+		cacheMu.RLock()
+		entryGz, existsGz := cache[cacheKeyGz]
+		cacheMu.RUnlock()
+
 		// Fall back to gzip if available
 		if supportsGZ {
-			if _, err := fs.Stat(root, clean+".gz"); err == nil {
+			var gzExists bool
+			if existsGz && time.Since(entryGz.time) < cacheTTL {
+				gzExists = entryGz.exists
+			} else {
+				if _, err := fs.Stat(root, clean+".gz"); err == nil {
+					gzExists = true
+				}
+				// Update cache
+				cacheMu.Lock()
+				cache[cacheKeyGz] = cacheEntry{exists: gzExists, time: time.Now()}
+				cacheMu.Unlock()
+			}
+
+			if gzExists {
 				if ctype := mime.TypeByExtension(path.Ext(clean)); ctype != "" {
 					w.Header().Set("Content-Type", ctype)
 				}
