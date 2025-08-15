@@ -6,8 +6,13 @@ import (
 	"time"
 )
 
+// DefaultTimeout defines the standard request timeout for the application.
+// This value is used across various middleware components that require timeout configuration.
 var DefaultTimeout = 60 * time.Second
 
+// SlogLogger creates a middleware that logs HTTP requests using structured logging.
+// It captures request details including method, path, status code, duration, and client information.
+// The middleware also sanitises input to prevent log injection attacks.
 func SlogLogger(l *slog.Logger) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -15,15 +20,17 @@ func SlogLogger(l *slog.Logger) func(next http.Handler) http.Handler {
 			ww := &statusWriter{ResponseWriter: w, status: 200}
 			next.ServeHTTP(ww, r)
 
-			// Sanitize path to prevent log injection
-			sanitizedPath := r.URL.Path
-			if len(sanitizedPath) > 100 {
-				sanitizedPath = sanitizedPath[:100] + "..."
+			// Sanitise path to prevent log injection attacks
+			// Long paths are truncated to prevent log flooding and improve readability
+			sanitisedPath := r.URL.Path
+			if len(sanitisedPath) > 100 {
+				sanitisedPath = sanitisedPath[:100] + "..."
 			}
 
+			// Log structured request information for monitoring and debugging
 			l.Info("request",
 				"method", r.Method,
-				"path", sanitizedPath,
+				"path", sanitisedPath,
 				"status", ww.status,
 				"duration_ms", time.Since(start).Milliseconds(),
 				"ip", r.RemoteAddr,
@@ -33,9 +40,16 @@ func SlogLogger(l *slog.Logger) func(next http.Handler) http.Handler {
 	}
 }
 
+// statusWriter wraps the original ResponseWriter to capture the HTTP status code.
+// This is necessary because the status code is not directly accessible from the ResponseWriter interface.
 type statusWriter struct {
 	http.ResponseWriter
-	status int
+	status int // Captures the HTTP status code for logging purposes
 }
 
-func (w *statusWriter) WriteHeader(code int) { w.status = code; w.ResponseWriter.WriteHeader(code) }
+// WriteHeader captures the status code before delegating to the original ResponseWriter.
+// This allows the middleware to log the actual status code returned to the client.
+func (w *statusWriter) WriteHeader(code int) {
+	w.status = code
+	w.ResponseWriter.WriteHeader(code)
+}

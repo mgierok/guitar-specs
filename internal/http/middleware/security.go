@@ -4,22 +4,25 @@ import (
 	"net/http"
 )
 
-// SecurityHeaders adds security-related HTTP headers
+// SecurityHeaders adds security-related HTTP headers to all responses.
+// This middleware implements defence-in-depth by setting multiple security headers
+// that protect against common web vulnerabilities.
 func SecurityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Prevent clickjacking
+		// Prevent clickjacking attacks by disallowing frame embedding
 		w.Header().Set("X-Frame-Options", "DENY")
 
-		// Prevent MIME type sniffing
+		// Prevent MIME type sniffing which can lead to XSS attacks
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 
-		// Enable XSS protection
+		// Enable legacy XSS protection for older browsers
 		w.Header().Set("X-XSS-Protection", "1; mode=block")
 
-		// Referrer policy
+		// Control referrer information leakage to third-party sites
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 
-		// Tightened Content Security Policy (without unsafe-inline)
+		// Tightened Content Security Policy to restrict resource loading
+		// This prevents XSS, data injection, and unauthorised resource loading
 		w.Header().Set("Content-Security-Policy",
 			"default-src 'self'; "+
 				"script-src 'self'; "+
@@ -30,10 +33,11 @@ func SecurityHeaders(next http.Handler) http.Handler {
 				"base-uri 'self'; "+
 				"frame-ancestors 'none'")
 
-		// Permissions Policy
+		// Restrict access to browser APIs that could be abused
 		w.Header().Set("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
 
-		// HSTS only for HTTPS
+		// HTTP Strict Transport Security (HSTS) only for HTTPS connections
+		// This prevents protocol downgrade attacks and enforces secure communication
 		if r.TLS != nil {
 			w.Header().Set("Strict-Transport-Security", "max-age=15552000; includeSubDomains; preload")
 		}

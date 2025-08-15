@@ -11,37 +11,44 @@ import (
 	"time"
 )
 
-// PrecompressedFileServer serves files, preferring pre-compressed variants (.br → .gz) when the client supports them.
-// Comments in British English as requested.
+// PrecompressedFileServer serves static files with intelligent compression selection.
+// It automatically serves pre-compressed variants (.br → .gz) when the client supports them,
+// falling back to uncompressed files when necessary. This significantly improves
+// transfer speeds and reduces bandwidth usage.
 func PrecompressedFileServer(root fs.FS) http.Handler {
 	base := http.FileServer(http.FS(root))
 
 	// Cache for file existence checks to avoid repeated fs.Stat calls
+	// This improves performance by reducing filesystem I/O operations
 	type cacheEntry struct {
-		exists bool
-		time   time.Time
+		exists bool      // Whether the compressed file exists
+		time   time.Time // When this cache entry was created
 	}
 
 	cache := make(map[string]cacheEntry)
 	var cacheMu sync.RWMutex
-	const cacheTTL = 5 * time.Minute
+	const cacheTTL = 5 * time.Minute // Cache entries expire after 5 minutes
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Only optimised for GET/HEAD; fall back for others
+		// Only optimised for GET/HEAD requests; fall back to standard file server for others
+		// This ensures we only apply compression logic where it makes sense
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			base.ServeHTTP(w, r)
 			return
 		}
 
+		// Clean and normalise the request path
 		// Path is expected to be relative to `root` because we use StripPrefix("/static/")
 		clean := path.Clean(strings.TrimPrefix(r.URL.Path, "/"))
 
-		// We always vary on Accept-Encoding for correctness and cacheability
+		// Always vary on Accept-Encoding for correctness and cacheability
+		// This ensures different compression variants are cached separately
 		w.Header().Add("Vary", "Accept-Encoding")
 
+		// Check client's compression support
 		ae := r.Header.Get("Accept-Encoding")
-		supportsBR := strings.Contains(ae, "br")
-		supportsGZ := strings.Contains(ae, "gzip")
+		supportsBR := strings.Contains(ae, "br")   // Brotli support
+		supportsGZ := strings.Contains(ae, "gzip") // Gzip support
 
 		// Check cache first for Brotli
 		cacheKey := clean + ".br"
