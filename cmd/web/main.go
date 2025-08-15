@@ -118,43 +118,50 @@ func main() {
 
 	// Graceful shutdown of all servers
 	log.Println("shutting down servers...")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+
+	// Create shutdown context with proper timeout
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	// Use WaitGroup to ensure all servers are properly shutdown
 	var wg sync.WaitGroup
 
-	// Shutdown all servers concurrently
+	// Shutdown all servers concurrently with individual timeouts
 	for _, server := range servers {
 		wg.Add(1)
 		go func(s *http.Server) {
 			defer wg.Done()
-			// Add timeout for individual server shutdown
-			serverCtx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-			defer cancel()
+
+			// Individual server shutdown with shorter timeout
+			serverCtx, serverCancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer serverCancel()
 
 			if err := s.Shutdown(serverCtx); err != nil {
 				log.Printf("server shutdown error: %v", err)
+			} else {
+				log.Printf("server shutdown completed successfully")
 			}
 		}(server)
 	}
 
-	// Wait for all servers to shutdown or timeout
+	// Wait for all servers to shutdown with overall timeout
 	shutdownDone := make(chan struct{})
 	go func() {
 		wg.Wait()
 		close(shutdownDone)
 	}()
 
-	// Add timeout for WaitGroup to prevent deadlock
-	waitTimeout := time.After(5 * time.Second)
-
+	// Wait for shutdown completion or timeout
 	select {
 	case <-shutdownDone:
 		log.Println("all servers stopped gracefully")
-	case <-ctx.Done():
+	case <-shutdownCtx.Done():
 		log.Println("shutdown timeout reached, forcing exit")
-	case <-waitTimeout:
-		log.Println("wait timeout reached, some servers may not have shutdown properly")
+		// Force close any remaining connections
+		for _, server := range servers {
+			if err := server.Close(); err != nil {
+				log.Printf("force close error: %v", err)
+			}
+		}
 	}
 }
