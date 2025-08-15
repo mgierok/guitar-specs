@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
@@ -46,9 +45,14 @@ func New(cfg Config) *App {
 	r.Use(chimw.Timeout(mw.DefaultTimeout)) // Request timeout protection
 	r.Use(mw.SecurityHeaders)               // Security headers (CSP, XSS protection, etc.)
 
-	// Rate limiting: 100 requests per minute per IP address
+	// HTTPS enforcement middleware when enabled
+	if cfg.EnableHTTPS {
+		r.Use(mw.HSTS) // HTTP Strict Transport Security
+	}
+
+	// Rate limiting: configurable requests per minute per IP address
 	// This protects against abuse and ensures fair resource distribution
-	rateLimiter := mw.NewRateLimiter(100, time.Minute)
+	rateLimiter := mw.NewRateLimiter(cfg.RateLimit, cfg.RateLimitWindow)
 	r.Use(rateLimiter.RateLimit)
 
 	// Compute per-file hashes for static assets to enable cache busting

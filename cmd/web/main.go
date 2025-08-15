@@ -23,27 +23,88 @@ func init() {
 }
 
 func main() {
+	// Load configuration from environment variables and .env files
 	cfg := app.LoadConfig()
-	a := app.New(cfg)
 
-	srv := &http.Server{
-		Addr:              cfg.Addr(),
-		Handler:           a.Router,
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      30 * time.Second,
-		IdleTimeout:       60 * time.Second,
-		MaxHeaderBytes:    1 << 20,
+	// Validate HTTPS configuration if enabled
+	if err := cfg.ValidateHTTPS(); err != nil {
+		log.Fatalf("HTTPS configuration error: %v", err)
 	}
 
-	// Graceful shutdown
-	go func() {
-		log.Println("server starting", "addr", cfg.Addr())
-		if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-			log.Println("server error:", err)
-			os.Exit(1)
+	a := app.New(cfg)
+
+	// Create HTTPS server when enabled
+	var srv *http.Server
+	if cfg.EnableHTTPS {
+		srv = &http.Server{
+			Addr:              cfg.AddrHTTPS(),
+			Handler:           a.Router,
+			ReadHeaderTimeout: cfg.ReadHeaderTimeout,
+			ReadTimeout:       cfg.ReadTimeout,
+			WriteTimeout:      cfg.WriteTimeout,
+			IdleTimeout:       cfg.IdleTimeout,
+			MaxHeaderBytes:    cfg.MaxHeaderBytes,
 		}
-	}()
+
+		// Start HTTPS server
+		go func() {
+			log.Printf("HTTPS server starting on %s", cfg.AddrHTTPS())
+			if err := srv.ListenAndServeTLS(cfg.CertFile, cfg.KeyFile); !errors.Is(err, http.ErrServerClosed) {
+				log.Printf("HTTPS server error: %v", err)
+				os.Exit(1)
+			}
+		}()
+
+		// Start HTTP redirect server if redirect is enabled
+		if cfg.RedirectHTTP {
+			log.Printf("Configuring HTTP redirect server on %s", cfg.AddrHTTP())
+			go func() {
+				redirectHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					// Redirect to HTTPS server on the configured HTTPS port
+					httpsURL := "https://" + cfg.Host + ":" + cfg.Port + r.RequestURI
+					log.Printf("Redirecting HTTP request from %s to %s", r.URL.String(), httpsURL)
+					http.Redirect(w, r, httpsURL, http.StatusMovedPermanently)
+				})
+
+				redirectSrv := &http.Server{
+					Addr:              cfg.AddrHTTP(),
+					Handler:           redirectHandler,
+					ReadHeaderTimeout: cfg.ReadHeaderTimeout,
+					ReadTimeout:       cfg.ReadTimeout,
+					WriteTimeout:      cfg.WriteTimeout,
+					IdleTimeout:       cfg.IdleTimeout,
+				}
+
+				log.Printf("HTTP redirect server starting on %s", cfg.AddrHTTP())
+				if err := redirectSrv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+					log.Printf("HTTP redirect server error: %v", err)
+					os.Exit(1)
+				}
+			}()
+		} else {
+			log.Printf("HTTP redirect disabled (REDIRECT_HTTP=false)")
+		}
+	} else {
+		// HTTP-only server
+		srv = &http.Server{
+			Addr:              cfg.Addr(),
+			Handler:           a.Router,
+			ReadHeaderTimeout: cfg.ReadHeaderTimeout,
+			ReadTimeout:       cfg.ReadTimeout,
+			WriteTimeout:      cfg.WriteTimeout,
+			IdleTimeout:       cfg.IdleTimeout,
+			MaxHeaderBytes:    cfg.MaxHeaderBytes,
+		}
+
+		// Start HTTP server
+		go func() {
+			log.Printf("HTTP server starting on %s", cfg.Addr())
+			if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+				log.Printf("HTTP server error: %v", err)
+				os.Exit(1)
+			}
+		}()
+	}
 
 	// SIGINT/SIGTERM
 	quit := make(chan os.Signal, 1)

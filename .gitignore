@@ -40,6 +40,14 @@ vendor/
 tags
 tags.lock
 
+# Environment files (contain sensitive configuration)
+.env
+.env.local
+.env.*.local
+
 # Preprocessed compressed static files
 *.gz
 *.br
+
+# Local SSL certificates (self-signed) – do not commit
+ssl/

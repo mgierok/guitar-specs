@@ -36,11 +36,8 @@ func SecurityHeaders(next http.Handler) http.Handler {
 		// Restrict access to browser APIs that could be abused
 		w.Header().Set("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
 
-		// HTTP Strict Transport Security (HSTS) only for HTTPS connections
-		// This prevents protocol downgrade attacks and enforces secure communication
-		if r.TLS != nil {
-			w.Header().Set("Strict-Transport-Security", "max-age=15552000; includeSubDomains; preload")
-		}
+		// Note: HSTS header is now handled by dedicated HSTS middleware
+		// This prevents duplication and allows for better configuration control
 
 		next.ServeHTTP(w, r)
 	})

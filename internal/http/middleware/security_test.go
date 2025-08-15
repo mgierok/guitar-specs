@@ -48,7 +48,8 @@ func TestSecurityHeaders(t *testing.T) {
 }
 
 func TestSecurityHeadersHSTS(t *testing.T) {
-	// Test that HSTS is set for HTTPS requests
+	// Test that HSTS is NOT set by SecurityHeaders middleware
+	// HSTS is now handled by dedicated HSTS middleware
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Hello, World!"))
 	})
@@ -62,11 +63,10 @@ func TestSecurityHeadersHSTS(t *testing.T) {
 
 	middleware.ServeHTTP(rec, req)
 
-	// Check that HSTS is set for HTTPS
+	// Check that HSTS is NOT set by SecurityHeaders (it's handled elsewhere)
 	hsts := rec.Header().Get("Strict-Transport-Security")
-	expectedHSTS := "max-age=15552000; includeSubDomains; preload"
-	if hsts != expectedHSTS {
-		t.Errorf("HSTS header: expected %s, got %s", expectedHSTS, hsts)
+	if hsts != "" {
+		t.Errorf("HSTS header should not be set by SecurityHeaders middleware, got: %s", hsts)
 	}
 }
 
