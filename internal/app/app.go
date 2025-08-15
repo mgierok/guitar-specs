@@ -38,6 +38,7 @@ func New(cfg Config) *App {
 	r.Use(chimw.Recoverer)
 	r.Use(mw.SlogLogger(logger))
 	r.Use(chimw.Timeout(mw.DefaultTimeout))
+	r.Use(mw.SecurityHeaders)
 
 	// Compute per-file hashes for static assets
 	sub, _ := fs.Sub(web.StaticFS, "static")
