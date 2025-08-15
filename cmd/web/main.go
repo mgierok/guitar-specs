@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -120,16 +121,31 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	// Use WaitGroup to ensure all servers are properly shutdown
+	var wg sync.WaitGroup
+
 	// Shutdown all servers concurrently
 	for _, server := range servers {
+		wg.Add(1)
 		go func(s *http.Server) {
+			defer wg.Done()
 			if err := s.Shutdown(ctx); err != nil {
 				log.Printf("server shutdown error: %v", err)
 			}
 		}(server)
 	}
 
-	// Wait for all servers to shutdown
-	<-ctx.Done()
-	log.Println("all servers stopped")
+	// Wait for all servers to shutdown or timeout
+	shutdownDone := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(shutdownDone)
+	}()
+
+	select {
+	case <-shutdownDone:
+		log.Println("all servers stopped gracefully")
+	case <-ctx.Done():
+		log.Println("shutdown timeout reached, forcing exit")
+	}
 }
