@@ -56,8 +56,8 @@ func TestLoadConfig(t *testing.T) {
 		if cfg.KeyFile != "" {
 			t.Errorf("Expected empty KeyFile, got '%s'", cfg.KeyFile)
 		}
-		if cfg.RedirectHTTP != true {
-			t.Errorf("Expected RedirectHTTP true (default), got %v", cfg.RedirectHTTP)
+		if cfg.RedirectHTTP != false {
+			t.Errorf("Expected RedirectHTTP false (HTTPS disabled), got %v", cfg.RedirectHTTP)
 		}
 	})
 
