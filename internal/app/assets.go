@@ -10,23 +10,35 @@ import (
 
 // BuildAssetVersions walks the static file system and computes an 8-character SHA-256
 // hash for each relevant asset. The hash is used for cache-busting via query strings.
+// This function requires all assets to be processed successfully for application stability.
 func BuildAssetVersions(static fs.FS) (map[string]string, error) {
 	m := make(map[string]string)
+
 	err := fs.WalkDir(static, ".", func(p string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return err
+		if err != nil {
+			return err // Fail fast on any filesystem error
 		}
+
+		if d.IsDir() {
+			return nil
+		}
+
 		// Only fingerprint common static types
 		if !hasAnySuffix(p, ".js", ".css", ".svg", ".json", ".wasm", ".png", ".jpg", ".jpeg", ".gif", "webp", ".avif", ".ico", "woff", ".ttf", ".woff2") {
 			return nil
 		}
+
 		f, err := static.Open(p)
 		if err != nil {
-			return err
+			return err // Fail fast on file open errors
 		}
+		defer f.Close()
+
 		h := sha256.New()
-		_, _ = io.Copy(h, f)
-		_ = f.Close()
+		if _, err := io.Copy(h, f); err != nil {
+			return err // Fail fast on file read errors
+		}
+
 		sum := hex.EncodeToString(h.Sum(nil))[:8]
 		// Normalise to URL path under /static
 		urlPath := "/static/" + strings.TrimPrefix(p, "./")
@@ -34,6 +46,7 @@ func BuildAssetVersions(static fs.FS) (map[string]string, error) {
 		m[urlPath] = sum
 		return nil
 	})
+
 	return m, err
 }
 

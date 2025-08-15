@@ -1,12 +1,14 @@
 package app
 
 import (
+	"fmt"
 	"html/template"
 	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
@@ -57,11 +59,22 @@ func New(cfg Config) *App {
 
 	// Compute per-file hashes for static assets to enable cache busting
 	// This ensures clients always receive the latest version when assets change
+	// Application requires all assets to be processed successfully for stability
 	sub, _ := fs.Sub(web.StaticFS, "static")
 	versions, err := BuildAssetVersions(sub)
 	if err != nil {
-		logger.Warn("failed to build asset versions", "err", err)
-		versions = map[string]string{}
+		logger.Warn("failed to build asset versions, retrying once", "err", err)
+		// Retry once after a short delay
+		time.Sleep(100 * time.Millisecond)
+		if versions, err = BuildAssetVersions(sub); err != nil {
+			logger.Error("failed to build asset versions after retry, application cannot start", "err", err)
+			// Panic to prevent application from running with incomplete assets
+			panic(fmt.Sprintf("asset versioning failed: %v", err))
+		} else {
+			logger.Info("asset versions built successfully after retry")
+		}
+	} else {
+		logger.Info("asset versions built successfully", "count", len(versions))
 	}
 
 	// Helper function for templates to append version hash to asset URLs
