@@ -33,6 +33,9 @@ func main() {
 
 	a := app.New(cfg)
 
+	// Create servers slice to track all running servers for graceful shutdown
+	var servers []*http.Server
+
 	// Create HTTPS server when enabled
 	var srv *http.Server
 	if cfg.EnableHTTPS {
@@ -45,40 +48,41 @@ func main() {
 			IdleTimeout:       cfg.IdleTimeout,
 			MaxHeaderBytes:    cfg.MaxHeaderBytes,
 		}
+		servers = append(servers, srv)
 
 		// Start HTTPS server
 		go func() {
 			log.Printf("HTTPS server starting on %s", cfg.AddrHTTPS())
 			if err := srv.ListenAndServeTLS(cfg.CertFile, cfg.KeyFile); !errors.Is(err, http.ErrServerClosed) {
 				log.Printf("HTTPS server error: %v", err)
-				os.Exit(1)
 			}
 		}()
 
 		// Start HTTP redirect server if redirect is enabled
 		if cfg.RedirectHTTP {
 			log.Printf("Configuring HTTP redirect server on %s", cfg.AddrHTTP())
+
+			redirectHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// Redirect to HTTPS server on the configured HTTPS port
+				httpsURL := "https://" + cfg.Host + ":" + cfg.Port + r.RequestURI
+				log.Printf("Redirecting HTTP request from %s to %s", r.URL.String(), httpsURL)
+				http.Redirect(w, r, httpsURL, http.StatusMovedPermanently)
+			})
+
+			redirectSrv := &http.Server{
+				Addr:              cfg.AddrHTTP(),
+				Handler:           redirectHandler,
+				ReadHeaderTimeout: cfg.ReadHeaderTimeout,
+				ReadTimeout:       cfg.ReadTimeout,
+				WriteTimeout:      cfg.WriteTimeout,
+				IdleTimeout:       cfg.IdleTimeout,
+			}
+			servers = append(servers, redirectSrv)
+
 			go func() {
-				redirectHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					// Redirect to HTTPS server on the configured HTTPS port
-					httpsURL := "https://" + cfg.Host + ":" + cfg.Port + r.RequestURI
-					log.Printf("Redirecting HTTP request from %s to %s", r.URL.String(), httpsURL)
-					http.Redirect(w, r, httpsURL, http.StatusMovedPermanently)
-				})
-
-				redirectSrv := &http.Server{
-					Addr:              cfg.AddrHTTP(),
-					Handler:           redirectHandler,
-					ReadHeaderTimeout: cfg.ReadHeaderTimeout,
-					ReadTimeout:       cfg.ReadTimeout,
-					WriteTimeout:      cfg.WriteTimeout,
-					IdleTimeout:       cfg.IdleTimeout,
-				}
-
 				log.Printf("HTTP redirect server starting on %s", cfg.AddrHTTP())
 				if err := redirectSrv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 					log.Printf("HTTP redirect server error: %v", err)
-					os.Exit(1)
 				}
 			}()
 		} else {
@@ -95,13 +99,13 @@ func main() {
 			IdleTimeout:       cfg.IdleTimeout,
 			MaxHeaderBytes:    cfg.MaxHeaderBytes,
 		}
+		servers = append(servers, srv)
 
 		// Start HTTP server
 		go func() {
 			log.Printf("HTTP server starting on %s", cfg.Addr())
 			if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 				log.Printf("HTTP server error: %v", err)
-				os.Exit(1)
 			}
 		}()
 	}
@@ -111,8 +115,21 @@ func main() {
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 	<-quit
 
+	// Graceful shutdown of all servers
+	log.Println("shutting down servers...")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	_ = srv.Shutdown(ctx)
-	log.Println("server stopped")
+
+	// Shutdown all servers concurrently
+	for _, server := range servers {
+		go func(s *http.Server) {
+			if err := s.Shutdown(ctx); err != nil {
+				log.Printf("server shutdown error: %v", err)
+			}
+		}(server)
+	}
+
+	// Wait for all servers to shutdown
+	<-ctx.Done()
+	log.Println("all servers stopped")
 }
