@@ -43,7 +43,8 @@ tags.lock
 # Environment files (contain sensitive configuration)
 .env
 .env.local
-.env.*.local
+.env.production
+.env.development
 
 # Preprocessed compressed static files
 *.gz
