@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"net/http"
+	"sync"
 )
 
 // ETag adds ETag headers to HTTP responses for improved caching.
@@ -34,11 +35,13 @@ type etagResponseWriter struct {
 	http.ResponseWriter
 	body    []byte        // Accumulates response content for ETag generation
 	request *http.Request // Original request for fallback ETag generation
+	mu      sync.Mutex    // Protects concurrent access to body and headers
 }
 
 // Write captures response data and generates ETag if not already set.
 // This ensures ETags are based on the actual response content.
 func (w *etagResponseWriter) Write(data []byte) (int, error) {
+	w.mu.Lock()
 	w.body = append(w.body, data...)
 
 	// Generate ETag based on content if headers haven't been written yet
@@ -48,6 +51,7 @@ func (w *etagResponseWriter) Write(data []byte) (int, error) {
 		etag := fmt.Sprintf(`"%x"`, hash[:8])
 		w.Header().Set("ETag", etag)
 	}
+	w.mu.Unlock()
 
 	return w.ResponseWriter.Write(data)
 }
@@ -55,6 +59,7 @@ func (w *etagResponseWriter) Write(data []byte) (int, error) {
 // WriteHeader generates ETag before calling the original WriteHeader.
 // This ensures ETags are set before the response is committed to the client.
 func (w *etagResponseWriter) WriteHeader(statusCode int) {
+	w.mu.Lock()
 	// Generate ETag if not already set by Write method
 	if w.Header().Get("ETag") == "" {
 		var etag string
@@ -70,6 +75,7 @@ func (w *etagResponseWriter) WriteHeader(statusCode int) {
 		}
 		w.Header().Set("ETag", etag)
 	}
+	w.mu.Unlock()
 
 	w.ResponseWriter.WriteHeader(statusCode)
 }
