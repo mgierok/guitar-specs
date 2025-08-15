@@ -14,12 +14,20 @@ func SlogLogger(l *slog.Logger) func(next http.Handler) http.Handler {
 			start := time.Now()
 			ww := &statusWriter{ResponseWriter: w, status: 200}
 			next.ServeHTTP(ww, r)
+
+			// Sanitize path to prevent log injection
+			sanitizedPath := r.URL.Path
+			if len(sanitizedPath) > 100 {
+				sanitizedPath = sanitizedPath[:100] + "..."
+			}
+
 			l.Info("request",
 				"method", r.Method,
-				"path", r.URL.Path,
+				"path", sanitizedPath,
 				"status", ww.status,
 				"duration_ms", time.Since(start).Milliseconds(),
 				"ip", r.RemoteAddr,
+				"user_agent", r.UserAgent(),
 			)
 		})
 	}
