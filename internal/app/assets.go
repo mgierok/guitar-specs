@@ -17,7 +17,7 @@ func BuildAssetVersions(static fs.FS) (map[string]string, error) {
 			return err
 		}
 		// Only fingerprint common static types
-		if !hasAnySuffix(p, ".js", ".css", ".svg", ".json", ".wasm") {
+		if !hasAnySuffix(p, ".js", ".css", ".svg", ".json", ".wasm", ".png", ".jpg", ".jpeg", ".gif", "webp", ".avif", ".ico", "woff", ".ttf", ".woff2") {
 			return nil
 		}
 		f, err := static.Open(p)
