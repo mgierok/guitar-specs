@@ -1,11 +1,10 @@
 package render
 
 import (
+	"bytes"
 	"embed"
 	"html/template"
-	"log"
 	"net/http"
-	"path/filepath"
 )
 
 type Renderer struct {
@@ -31,14 +30,17 @@ func New(fs embed.FS) *Renderer {
 }
 
 func (r *Renderer) HTML(w http.ResponseWriter, req *http.Request, name string, data any) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	t := r.byFile[filepath.Base(name)]
-	if t == nil {
+	t, ok := r.byFile[name]
+	if !ok {
 		http.NotFound(w, req)
 		return
 	}
-	if err := t.ExecuteTemplate(w, filepath.Base(name), data); err != nil {
-		log.Printf("template execute error: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	var buf bytes.Buffer
+	if err := t.ExecuteTemplate(&buf, "base", data); err != nil {
+		http.Error(w, "template error", http.StatusInternalServerError)
+		return
 	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(buf.Bytes())
 }

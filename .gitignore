@@ -39,3 +39,7 @@ vendor/
 # Dev files
 tags
 tags.lock
+
+# Preprocessed compressed static files
+*.gz
+*.br

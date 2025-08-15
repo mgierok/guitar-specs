@@ -4,6 +4,14 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
+
+# Install brotli for precompression (gzip is available by default)
+RUN apt-get update && apt-get install -y --no-install-recommends brotli && rm -rf /var/lib/apt/lists/*
+
+# Precompress static assets so they are embedded into the binary
+RUN make assets-precompress
+
+# Build the app
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/web ./cmd/web
 
 # Run stage
