@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"net/http"
 	"path/filepath"
+	"sync"
 )
 
 // Renderer holds parsed templates keyed by page filename.
@@ -55,8 +56,11 @@ func (r *Renderer) HTML(w http.ResponseWriter, req *http.Request, name string, d
 		return
 	}
 
-	var buf bytes.Buffer
-	if err := t.ExecuteTemplate(&buf, "base", data); err != nil {
+	// Use sync.Pool for buffer reuse
+	buf := getBuffer()
+	defer putBuffer(buf)
+
+	if err := t.ExecuteTemplate(buf, "base", data); err != nil {
 		http.Error(w, "template error", http.StatusInternalServerError)
 		return
 	}
@@ -64,4 +68,20 @@ func (r *Renderer) HTML(w http.ResponseWriter, req *http.Request, name string, d
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(buf.Bytes())
+}
+
+// Buffer pool for template rendering
+var bufferPool = sync.Pool{
+	New: func() interface{} {
+		return new(bytes.Buffer)
+	},
+}
+
+func getBuffer() *bytes.Buffer {
+	return bufferPool.Get().(*bytes.Buffer)
+}
+
+func putBuffer(buf *bytes.Buffer) {
+	buf.Reset()
+	bufferPool.Put(buf)
 }
