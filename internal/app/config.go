@@ -1,8 +1,12 @@
 package app
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -145,9 +149,159 @@ func (c Config) ValidateHTTPS() error {
 		return fmt.Errorf("SSL private key file not found: %s", c.KeyFile)
 	}
 
+	// Validate certificate format and expiry
+	if err := c.validateCertificate(); err != nil {
+		return fmt.Errorf("SSL certificate validation failed: %w", err)
+	}
+
+	// Validate certificate-key compatibility
+	if err := c.validateCertificateKeyPair(); err != nil {
+		return fmt.Errorf("SSL certificate-key pair validation failed: %w", err)
+	}
+
 	// Validate logical consistency
 	if c.RedirectHTTP && !c.EnableHTTPS {
 		return fmt.Errorf("HTTP redirect enabled but HTTPS is disabled - this configuration is invalid")
+	}
+
+	return nil
+}
+
+// validateCertificate checks certificate format and expiry
+// This prevents runtime errors from malformed or expired certificates
+func (c Config) validateCertificate() error {
+	// Read and parse the certificate file
+	certData, err := os.ReadFile(c.CertFile)
+	if err != nil {
+		return fmt.Errorf("failed to read certificate file: %w", err)
+	}
+
+	// Parse the certificate - handle both PEM and DER formats
+	var cert *x509.Certificate
+
+	// Try to parse as PEM first (most common for self-signed certificates)
+	if block, _ := pem.Decode(certData); block != nil {
+		// PEM format detected
+		if block.Type != "CERTIFICATE" {
+			return fmt.Errorf("PEM block is not a certificate (type: %s)", block.Type)
+		}
+		cert, err = x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return fmt.Errorf("failed to parse PEM certificate: %w", err)
+		}
+	} else {
+		// Try to parse as raw DER (binary format)
+		cert, err = x509.ParseCertificate(certData)
+		if err != nil {
+			return fmt.Errorf("failed to parse certificate (tried PEM and DER): %w", err)
+		}
+	}
+
+	// Check if certificate is expired
+	now := time.Now()
+	if now.After(cert.NotAfter) {
+		return fmt.Errorf("certificate expired on %s", cert.NotAfter.Format("2006-01-02 15:04:05"))
+	}
+
+	// Check if certificate is not yet valid
+	if now.Before(cert.NotBefore) {
+		return fmt.Errorf("certificate not valid until %s", cert.NotBefore.Format("2006-01-02 15:04:05"))
+	}
+
+	// Check if certificate is close to expiry (within 30 days)
+	expiryThreshold := 30 * 24 * time.Hour
+	if time.Until(cert.NotAfter) < expiryThreshold {
+		return fmt.Errorf("certificate expires soon on %s (within 30 days)", cert.NotAfter.Format("2006-01-02 15:04:05"))
+	}
+
+	return nil
+}
+
+// validateCertificateKeyPair checks if certificate and private key are compatible
+// This ensures the application can actually use the certificate-key pair
+func (c Config) validateCertificateKeyPair() error {
+	// Read certificate and private key
+	certData, err := os.ReadFile(c.CertFile)
+	if err != nil {
+		return fmt.Errorf("failed to read certificate file: %w", err)
+	}
+
+	keyData, err := os.ReadFile(c.KeyFile)
+	if err != nil {
+		return fmt.Errorf("failed to read private key file: %w", err)
+	}
+
+	// Parse the certificate - handle both PEM and DER formats
+	var cert *x509.Certificate
+	if block, _ := pem.Decode(certData); block != nil {
+		// PEM format detected
+		if block.Type != "CERTIFICATE" {
+			return fmt.Errorf("PEM block is not a certificate (type: %s)", block.Type)
+		}
+		cert, err = x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return fmt.Errorf("failed to parse PEM certificate: %w", err)
+		}
+	} else {
+		// Try to parse as raw DER (binary format)
+		cert, err = x509.ParseCertificate(certData)
+		if err != nil {
+			return fmt.Errorf("failed to parse certificate (tried PEM and DER): %w", err)
+		}
+	}
+
+	// Parse the private key - handle both PEM and DER formats
+	var privateKey interface{}
+
+	// Try to parse as PEM first
+	if block, _ := pem.Decode(keyData); block != nil {
+		// PEM format detected
+		switch block.Type {
+		case "RSA PRIVATE KEY":
+			// PKCS1 format
+			key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+			if err != nil {
+				return fmt.Errorf("failed to parse PEM RSA private key: %w", err)
+			}
+			privateKey = key
+		case "PRIVATE KEY":
+			// PKCS8 format
+			key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+			if err != nil {
+				return fmt.Errorf("failed to parse PEM PKCS8 private key: %w", err)
+			}
+			privateKey = key
+		default:
+			return fmt.Errorf("unsupported PEM block type for private key: %s", block.Type)
+		}
+	} else {
+		// Try to parse as raw DER - try PKCS1 first, then PKCS8
+		key, err := x509.ParsePKCS1PrivateKey(keyData)
+		if err != nil {
+			// Try PKCS8 format
+			privateKey, err = x509.ParsePKCS8PrivateKey(keyData)
+			if err != nil {
+				return fmt.Errorf("failed to parse private key (tried PEM and DER): %w", err)
+			}
+		} else {
+			privateKey = key
+		}
+	}
+
+	// Check if it's an RSA key
+	rsaKey, ok := privateKey.(*rsa.PrivateKey)
+	if !ok {
+		return fmt.Errorf("private key is not RSA format")
+	}
+
+	// Verify RSA key size is reasonable
+	if rsaKey.N.BitLen() < 2048 {
+		return fmt.Errorf("RSA key size is too small: %d bits (minimum 2048 recommended)", rsaKey.N.BitLen())
+	}
+
+	// Verify certificate and key are compatible by checking public key
+	if !reflect.DeepEqual(cert.PublicKey, rsaKey.Public()) {
+		return fmt.Errorf("certificate and private key are not compatible")
 	}
 
 	return nil
