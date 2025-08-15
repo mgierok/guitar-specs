@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"mime"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,6 +13,14 @@ import (
 
 	"guitar-specs/internal/app"
 )
+
+// ensure consistent MIME types for JavaScript assets across environments.
+func init() {
+	// application/javascript is the modern, widely expected type for .js
+	_ = mime.AddExtensionType(".js", "application/javascript")
+	// some bundlers emit .mjs; text/javascript keeps older agents happy
+	_ = mime.AddExtensionType(".mjs", "text/javascript")
+}
 
 func main() {
 	cfg := app.LoadConfig()
