@@ -7,6 +7,7 @@ assets-precompress:
 	@echo "✓ Done."
 
 run:
+	go generate ./...
 	go run ./cmd/web
 
 build:
@@ -15,4 +16,3 @@ build:
 
 test:
 	go test ./...
-
