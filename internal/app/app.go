@@ -30,16 +30,22 @@ type App struct {
 // New creates and configures a new application instance.
 // It sets up the router, middleware stack, handlers, and asset versioning system.
 // The function follows a clear middleware ordering: security → rate limiting → logging → compression.
+// All middleware is thread-safe and designed for concurrent use.
 func New(cfg Config) *App {
 	// Create structured logger with text output for development and production
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	}))
 
+	// Initialize router with proper error handling
 	r := chi.NewRouter()
+	if r == nil {
+		panic("failed to create chi router")
+	}
 
 	// Standard middleware stack applied to all dynamic routes
 	// These provide request identification, security, logging, and timeout protection
+	// Order is critical: RequestID → RealIP → Recoverer → Logging → Timeout → Security
 	r.Use(chimw.RequestID)                  // Unique request identifier for tracing
 	r.Use(chimw.RealIP)                     // Extract real client IP from proxy headers
 	r.Use(chimw.Recoverer)                  // Panic recovery and graceful error handling
@@ -83,10 +89,12 @@ func New(cfg Config) *App {
 
 	// Helper function for templates to append version hash to asset URLs
 	// This enables aggressive caching while ensuring cache invalidation on updates
+	// The function is thread-safe as it only reads from the versions map
 	assetFunc := func(p string) string {
 		if !strings.HasPrefix(p, "/") {
 			p = "/" + p
 		}
+		// Read-only access to versions map is safe for concurrent use
 		if v, ok := versions[p]; ok {
 			return p + "?v=" + v
 		}

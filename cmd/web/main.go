@@ -129,7 +129,11 @@ func main() {
 		wg.Add(1)
 		go func(s *http.Server) {
 			defer wg.Done()
-			if err := s.Shutdown(ctx); err != nil {
+			// Add timeout for individual server shutdown
+			serverCtx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+			defer cancel()
+
+			if err := s.Shutdown(serverCtx); err != nil {
 				log.Printf("server shutdown error: %v", err)
 			}
 		}(server)
@@ -142,10 +146,15 @@ func main() {
 		close(shutdownDone)
 	}()
 
+	// Add timeout for WaitGroup to prevent deadlock
+	waitTimeout := time.After(5 * time.Second)
+
 	select {
 	case <-shutdownDone:
 		log.Println("all servers stopped gracefully")
 	case <-ctx.Done():
 		log.Println("shutdown timeout reached, forcing exit")
+	case <-waitTimeout:
+		log.Println("wait timeout reached, some servers may not have shutdown properly")
 	}
 }
