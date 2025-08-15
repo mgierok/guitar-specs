@@ -39,12 +39,6 @@ func New(cfg Config) *App {
 	r.Use(mw.SlogLogger(logger))
 	r.Use(chimw.Timeout(mw.DefaultTimeout))
 
-	// Compress dynamic responses (HTML, JSON, etc.)
-	r.Use(chimw.Compress(5,
-		"text/html", "text/css", "application/javascript",
-		"application/json", "image/svg+xml",
-	))
-
 	// Compute per-file hashes for static assets
 	sub, _ := fs.Sub(web.StaticFS, "static")
 	versions, err := BuildAssetVersions(sub)
@@ -80,11 +74,21 @@ func New(cfg Config) *App {
 		r.Handle("/static/*", http.StripPrefix("/static/", mw.PrecompressedFileServer(sub)))
 	})
 
-	// Handlers
+	// Pages (dynamic): apply compression only here.
 	pages := h.New(ren, web.RobotsFS)
-	r.Get("/", pages.Home)
-	r.Get("/about", pages.About)
-	r.Get("/contact", pages.Contact)
+	r.Group(func(r chi.Router) {
+		// British English: compress dynamic responses; static assets are handled elsewhere.
+		r.Use(chimw.Compress(5,
+			"text/html", "text/css", "application/javascript",
+			"application/json", "image/svg+xml",
+		))
+
+		r.Get("/", pages.Home)
+		r.Get("/about", pages.About)
+		r.Get("/contact", pages.Contact)
+	})
+
+	// Non-compressed, tiny responses
 	r.Get("/robots.txt", pages.RobotsTxt)
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
