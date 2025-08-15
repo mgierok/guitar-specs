@@ -2,8 +2,6 @@ package app
 
 import (
 	"fmt"
-	"log/slog"
-	"net/http"
 	"os"
 )
 
@@ -28,10 +26,4 @@ func getenv(k, def string) string {
 		return v
 	}
 	return def
-}
-
-type App struct {
-	Config Config
-	Logger *slog.Logger
-	Router http.Handler
 }

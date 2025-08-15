@@ -1,20 +1,30 @@
 package app
 
 import (
+	"html/template"
 	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chimw "github.com/go-chi/chi/v5/middleware"
 
 	h "guitar-specs/internal/http/handlers"
 	mw "guitar-specs/internal/http/middleware"
 	"guitar-specs/internal/render"
-	"guitar-specs/web" // Importing web package for FS variables
+	"guitar-specs/web"
 )
 
+// App holds core application state and dependencies.
+type App struct {
+	Config Config
+	Logger *slog.Logger
+	Router http.Handler
+}
+
+// New wires up the router, middleware, handlers and asset versioning.
 func New(cfg Config) *App {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
@@ -22,38 +32,53 @@ func New(cfg Config) *App {
 
 	r := chi.NewRouter()
 
-	// Standard middlewares
-	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
-	r.Use(middleware.Recoverer)
+	// Standard middlewares for all dynamic routes
+	r.Use(chimw.RequestID)
+	r.Use(chimw.RealIP)
+	r.Use(chimw.Recoverer)
 	r.Use(mw.SlogLogger(logger))
-	r.Use(middleware.RealIP)
-	r.Use(middleware.Compress(5))
-	r.Use(middleware.Timeout(mw.DefaultTimeout))
-	r.Use(middleware.Compress(5,
+	r.Use(chimw.Timeout(mw.DefaultTimeout))
+
+	// Compress dynamic responses (HTML, JSON, etc.)
+	r.Use(chimw.Compress(5,
 		"text/html", "text/css", "application/javascript",
 		"application/json", "image/svg+xml",
 	))
 
+	// Compute per-file hashes for static assets
+	sub, _ := fs.Sub(web.StaticFS, "static")
+	versions, err := BuildAssetVersions(sub)
+	if err != nil {
+		logger.Warn("failed to build asset versions", "err", err)
+		versions = map[string]string{}
+	}
+
+	// Helper function for templates to append ?v=<hash>
+	assetFunc := func(p string) string {
+		if !strings.HasPrefix(p, "/") {
+			p = "/" + p
+		}
+		if v, ok := versions[p]; ok {
+			return p + "?v=" + v
+		}
+		return p
+	}
+
+	// Renderer with asset() helper
+	ren := render.NewWithFuncs(web.TemplatesFS, template.FuncMap{"asset": assetFunc})
+
 	// Group for static files without verbose request logging
 	r.Group(func(r chi.Router) {
-		// very long cache for static assets (safe when files are fingerprinted)
+		// Long-lived, immutable cache is safe because URLs change when content changes
 		r.Use(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				// Keep this header here if you also serve non-precompressed originals
-				w.Header().Set("Cache-Control", "public, max-age=86400, immutable")
+				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 				next.ServeHTTP(w, req)
 			})
 		})
 
-		sub, _ := fs.Sub(web.StaticFS, "static")
-
-		// Important: StripPrefix before the precompressed file server
 		r.Handle("/static/*", http.StripPrefix("/static/", mw.PrecompressedFileServer(sub)))
 	})
-
-	// Renderer
-	ren := render.New(web.TemplatesFS)
 
 	// Handlers
 	pages := h.New(ren, web.RobotsFS)
@@ -63,7 +88,7 @@ func New(cfg Config) *App {
 	r.Get("/robots.txt", pages.RobotsTxt)
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok"))
 	})
 
 	return &App{
@@ -71,12 +96,4 @@ func New(cfg Config) *App {
 		Logger: logger,
 		Router: r,
 	}
-}
-
-func cacheForever(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// jeśli masz fingerprint w nazwach plików, śmiało immutable
-		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-		next.ServeHTTP(w, r)
-	})
 }
