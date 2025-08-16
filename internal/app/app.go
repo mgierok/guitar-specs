@@ -52,7 +52,7 @@ func New(cfg Config) *App {
 	r.Use(mw.SlogLogger(logger))            // Structured request logging
 	r.Use(chimw.Timeout(mw.DefaultTimeout)) // Request timeout protection
 	r.Use(mw.SecurityHeaders)               // Security headers (CSP, XSS protection, etc.)
-	r.Use(mw.HSTS)                          // HTTP Strict Transport Security (always enabled for HTTPS-only app)
+	// Note: HSTS is handled by Cloudflare CDN layer
 
 	// Rate limiting: configurable requests per minute per IP address
 	// This protects against abuse and ensures fair resource distribution

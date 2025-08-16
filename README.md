@@ -6,7 +6,7 @@ A secure and performant Go web application with **HTTPS-only** operation, compre
 
 ### Security Features
 - **HTTPS Only**: Application runs exclusively in HTTPS mode with SSL certificate validation
-- **Security Headers**: Comprehensive security headers including CSP, XSS protection, and HSTS
+- **Security Headers**: Comprehensive security headers including CSP, XSS protection, and other security measures
 - **Rate Limiting**: IP-based rate limiting to prevent abuse and DoS attacks
 - **Input Sanitisation**: Log sanitisation to prevent injection attacks
 - **SSL Certificate Validation**: Automatic validation of certificate format, expiry, and key compatibility
@@ -126,8 +126,7 @@ PORT=9000
 
 The application runs exclusively in HTTPS mode:
 - **SSL certificates are required** - the application will not start without valid certificates
-- **HSTS headers are always enabled** to enforce HTTPS usage
-- **All security headers are optimised** for HTTPS
+- **Security headers are optimised** for HTTPS
 - **SSL certificate validation ensures**:
   - Certificate format is valid (PEM/DER)
   - Certificate is not expired
@@ -136,7 +135,7 @@ The application runs exclusively in HTTPS mode:
   - Private key is compatible with certificate
   - RSA key size is at least 2048 bits
 
-**Note**: HTTP to HTTPS redirection is handled by Cloudflare or your reverse proxy, not by the application itself.
+**Note**: HTTP to HTTPS redirection and HSTS are handled by Cloudflare or your reverse proxy, not by the application itself.
 
 ## Makefile Commands
 
@@ -215,7 +214,6 @@ For production, use certificates from a trusted Certificate Authority:
 ## Security Considerations
 
 - **HTTPS Only**: The application runs exclusively in HTTPS mode
-- **HSTS**: HTTP Strict Transport Security is always enabled
 - **Security Headers**: Comprehensive security headers protect against common web vulnerabilities:
   - Content Security Policy (CSP)
   - X-Frame-Options
@@ -226,6 +224,7 @@ For production, use certificates from a trusted Certificate Authority:
 - **Rate Limiting**: Built-in rate limiting prevents abuse and DoS attacks
 - **Input Validation**: All user inputs are sanitised to prevent injection attacks
 - **SSL Validation**: Strict SSL certificate validation prevents security issues
+- **CDN Security**: HSTS and HTTP→HTTPS redirection handled by Cloudflare
 
 ## Performance Features
 

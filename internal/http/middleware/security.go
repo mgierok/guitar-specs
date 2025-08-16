@@ -36,9 +36,7 @@ func SecurityHeaders(next http.Handler) http.Handler {
 		// Restrict access to browser APIs that could be abused
 		w.Header().Set("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
 
-		// Note: HSTS header is now handled by dedicated HSTS middleware
-		// This prevents duplication and allows for better configuration control
-
+		// Note: HSTS is handled by Cloudflare CDN layer
 		next.ServeHTTP(w, r)
 	})
 }

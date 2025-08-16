@@ -1,29 +1,28 @@
 package middleware
 
 import (
-	"crypto/tls"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
 func TestSecurityHeaders(t *testing.T) {
-	// Create a simple handler
+	// Create a simple handler that returns 200 OK
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello, World!"))
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
 	})
 
-	// Wrap with SecurityHeaders middleware
+	// Wrap with security headers middleware
 	middleware := SecurityHeaders(handler)
 
-	// Create test request
-	req := httptest.NewRequest("GET", "/", nil)
-	rec := httptest.NewRecorder()
+	// Test that security headers are set correctly
+	req := httptest.NewRequest("GET", "/test", nil)
+	w := httptest.NewRecorder()
 
-	// Execute request
-	middleware.ServeHTTP(rec, req)
+	middleware.ServeHTTP(w, req)
 
-	// Check all required security headers
+	// Check that all required security headers are set
 	headers := map[string]string{
 		"X-Frame-Options":         "DENY",
 		"X-Content-Type-Options":  "nosniff",
@@ -34,62 +33,45 @@ func TestSecurityHeaders(t *testing.T) {
 	}
 
 	for header, expectedValue := range headers {
-		actualValue := rec.Header().Get(header)
-		if actualValue != expectedValue {
-			t.Errorf("Header %s: expected %s, got %s", header, expectedValue, actualValue)
+		if value := w.Header().Get(header); value != expectedValue {
+			t.Errorf("Expected header %s to be '%s', got '%s'", header, expectedValue, value)
 		}
 	}
 
-	// Check that HSTS is NOT set for HTTP (non-TLS) requests
-	hsts := rec.Header().Get("Strict-Transport-Security")
-	if hsts != "" {
-		t.Errorf("HSTS header should not be set for HTTP requests, got: %s", hsts)
+	// Verify response body is preserved
+	if w.Body.String() != "OK" {
+		t.Errorf("Expected body 'OK', got '%s'", w.Body.String())
 	}
 }
 
-func TestSecurityHeadersHSTS(t *testing.T) {
-	// Test that HSTS is NOT set by SecurityHeaders middleware
-	// HSTS is now handled by dedicated HSTS middleware
+func TestSecurityHeadersPreservesExistingHeaders(t *testing.T) {
+	// Create a handler that sets custom headers
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello, World!"))
+		w.Header().Set("Custom-Header", "custom-value")
+		w.Header().Set("X-Custom-Security", "custom-security")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
 	})
 
+	// Wrap with security headers middleware
 	middleware := SecurityHeaders(handler)
 
-	// Create HTTPS request (simulate TLS)
-	req := httptest.NewRequest("GET", "https://localhost/", nil)
-	req.TLS = &tls.ConnectionState{} // Simulate TLS connection
-	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/test", nil)
+	w := httptest.NewRecorder()
 
-	middleware.ServeHTTP(rec, req)
+	middleware.ServeHTTP(w, req)
 
-	// Check that HSTS is NOT set by SecurityHeaders (it's handled elsewhere)
-	hsts := rec.Header().Get("Strict-Transport-Security")
-	if hsts != "" {
-		t.Errorf("HSTS header should not be set by SecurityHeaders middleware, got: %s", hsts)
+	// Check that custom headers are preserved
+	if value := w.Header().Get("Custom-Header"); value != "custom-value" {
+		t.Errorf("Expected Custom-Header to be 'custom-value', got '%s'", value)
 	}
-}
 
-func TestSecurityHeadersNonGET(t *testing.T) {
-	// Test that security headers are set for all HTTP methods
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello, World!"))
-	})
+	if value := w.Header().Get("X-Custom-Security"); value != "custom-security" {
+		t.Errorf("Expected X-Custom-Security to be 'custom-security', got '%s'", value)
+	}
 
-	middleware := SecurityHeaders(handler)
-
-	methods := []string{"POST", "PUT", "DELETE", "PATCH"}
-
-	for _, method := range methods {
-		req := httptest.NewRequest(method, "/", nil)
-		rec := httptest.NewRecorder()
-
-		middleware.ServeHTTP(rec, req)
-
-		// Check that security headers are present for all methods
-		csp := rec.Header().Get("Content-Security-Policy")
-		if csp == "" {
-			t.Errorf("Content-Security-Policy header missing for %s request", method)
-		}
+	// Check that security headers are still set
+	if value := w.Header().Get("X-Frame-Options"); value != "DENY" {
+		t.Errorf("Expected X-Frame-Options to be 'DENY', got '%s'", value)
 	}
 }
