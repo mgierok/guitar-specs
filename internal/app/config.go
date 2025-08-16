@@ -32,9 +32,7 @@ type Config struct {
 	MaxHeaderBytes    int           // Maximum header size in bytes (1MB)
 
 	// Security options
-	TrustedProxies  []string      // List of trusted proxy IPs for RealIP middleware
-	RateLimit       int           // Requests per minute per IP (default: 100)
-	RateLimitWindow time.Duration // Rate limit window (default: 1 minute)
+	TrustedProxies []string // List of trusted proxy IPs for RealIP middleware
 }
 
 // LoadConfig loads configuration from environment variables with sensible defaults.
@@ -62,9 +60,7 @@ func LoadConfig() Config {
 		MaxHeaderBytes:    getInt("MAX_HEADER_BYTES", 1<<20), // 1MB
 
 		// Security options
-		TrustedProxies:  getStringSlice("TRUSTED_PROXIES", []string{"127.0.0.1", "::1"}),
-		RateLimit:       getInt("RATE_LIMIT", 100),
-		RateLimitWindow: getDuration("RATE_LIMIT_WINDOW", time.Minute),
+		TrustedProxies: getStringSlice("TRUSTED_PROXIES", []string{"127.0.0.1", "::1"}),
 	}
 
 	return cfg
