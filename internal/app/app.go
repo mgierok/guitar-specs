@@ -124,12 +124,12 @@ func New(cfg Config) *App {
 	})
 
 	// Apply middleware stack to all routes
-	// Order is critical: RequestID → RealIP → Recoverer → Logging → Timeout → Security
+	// Order is critical: RequestID → RealIP → Recoverer → ContextLogging → Timeout → Security
 	handler := mw.RequestID(
 		mw.RealIP(cfg.TrustedProxies)(
 			mw.Recoverer(logger)(
-				mw.SlogLogger(logger)(
-					mw.Timeout(mw.DefaultTimeout)(
+				mw.ContextLogger(logger)(
+					mw.TimeoutWithCause(mw.DefaultTimeout, fmt.Errorf("request timeout after %v", mw.DefaultTimeout))(
 						mw.SecurityHeaders(mux),
 					),
 				),
