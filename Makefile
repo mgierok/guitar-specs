@@ -27,7 +27,7 @@ env-check:
 	@if [ ! -f .env ]; then echo "❌ .env file not found"; exit 1; fi
 	@echo "✓ .env file exists"
 	@echo "→ Current configuration:"
-	@grep -E "^(HOST|PORT|ENV|ENABLE_HTTPS|SSL_CERT_FILE|SSL_KEY_FILE|REDIRECT_HTTP|HTTP_REDIRECT_PORT)=" .env | sort
+	@grep -E "^(HOST|PORT|ENV|SSL_CERT_FILE|SSL_KEY_FILE)=" .env | sort
 
 env-clean:
 	@echo "→ Removing .env files..."
@@ -40,7 +40,7 @@ clean: ssl-clean env-clean
 # Help
 help:
 	@echo "Available commands:"
-	@echo "  run          - Start application (uses .env if available)"
+	@echo "  run          - Start HTTPS application (requires SSL certificates)"
 	@echo "  build        - Build application binary"
 	@echo "  test         - Run tests"
 	@echo "  env-check    - Check .env configuration"

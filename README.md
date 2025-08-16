@@ -1,11 +1,11 @@
 # Guitar Specs
 
-A secure and performant Go web application with built-in HTTPS support, comprehensive security features, and production-ready performance optimisations.
+A secure and performant Go web application with **HTTPS-only** operation, comprehensive security features, and production-ready performance optimisations.
 
 ## Features
 
 ### Security Features
-- **HTTPS Enforcement**: Full HTTPS support with automatic HTTP to HTTPS redirection
+- **HTTPS Only**: Application runs exclusively in HTTPS mode with SSL certificate validation
 - **Security Headers**: Comprehensive security headers including CSP, XSS protection, and HSTS
 - **Rate Limiting**: IP-based rate limiting to prevent abuse and DoS attacks
 - **Input Sanitisation**: Log sanitisation to prevent injection attacks
@@ -22,7 +22,7 @@ A secure and performant Go web application with built-in HTTPS support, comprehe
 
 ### Prerequisites
 - Go 1.25 or later
-- SSL certificate and private key files (for HTTPS)
+- **SSL certificate and private key files (required)**
 
 ### Development Setup
 ```bash
@@ -40,31 +40,13 @@ make env-create
 make run
 ```
 
-### Running with HTTP (Development)
+### Running the Application
 ```bash
-# Default configuration runs on HTTP port 8080
-make run
-```
-
-### Running with HTTPS (Production)
-```bash
-# Option 1: Using .env file (recommended)
-# Create .env.production file with your settings
-echo "ENABLE_HTTPS=true" > .env.production
-echo "SSL_CERT_FILE=ssl/localhost.crt" >> .env.production
-echo "SSL_KEY_FILE=ssl/localhost.key" >> .env.production
-echo "PORT=8443" >> .env.production
-echo "HTTP_REDIRECT_PORT=8080" >> .env.production
-
-# Run the application
-make run
-
-# Option 2: Using environment variables directly
-export ENABLE_HTTPS=true
-export SSL_CERT_FILE=ssl/localhost.crt
-export SSL_KEY_FILE=ssl/localhost.key
-export PORT=8443
-export HTTP_REDIRECT_PORT=8080
+# The application runs exclusively in HTTPS mode
+# Create .env file with your SSL certificate paths
+echo "SSL_CERT_FILE=ssl/localhost.crt" > .env
+echo "SSL_KEY_FILE=ssl/localhost.key" >> .env
+echo "PORT=8443" >> .env
 
 # Run the application
 make run
@@ -76,7 +58,7 @@ make run
 
 The application loads configuration from `.env` files with the following priority order:
 1. **`.env`** (base configuration, lowest priority)
-2. **`.env.[ENVIRONMENT]`** (environment-specific, e.g., `.env.production`)
+2. **`.env.[ENVIRONMENT]** (environment-specific, e.g., `.env.production`)
 3. **`.env.local`** (local overrides, does NOT override existing variables)
 
 **Important**: `.env.local` only sets variables that are not already defined, it does not override values from `.env` or `.env.[ENVIRONMENT]` files.
@@ -86,13 +68,10 @@ The application loads configuration from `.env` files with the following priorit
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `HOST` | `0.0.0.0` | Server host address (0.0.0.0 for all interfaces) |
-| `PORT` | `8080` | Server port number (8443 for HTTPS, 8080 for HTTP) |
+| `PORT` | `8443` | Server port number (HTTPS only) |
 | `ENV` | `development` | Environment name (development, production, staging) |
-| `ENABLE_HTTPS` | `false` | Enable HTTPS mode |
-| `SSL_CERT_FILE` | `""` | Path to SSL certificate file |
-| `SSL_KEY_FILE` | `""` | Path to SSL private key file |
-| `REDIRECT_HTTP` | `true` | Redirect HTTP to HTTPS (only when HTTPS enabled) |
-| `HTTP_REDIRECT_PORT` | `8080` | Port for HTTP redirect server (8080 for development, 80 for production) |
+| `SSL_CERT_FILE` | **required** | Path to SSL certificate file |
+| `SSL_KEY_FILE` | **required** | Path to SSL private key file |
 
 #### Advanced Server Configuration
 | Variable | Default | Description |
@@ -116,9 +95,10 @@ The application loads configuration from `.env` files with the following priorit
 ```bash
 # .env (base configuration)
 HOST=127.0.0.1
-PORT=8080
+PORT=8443
 ENV=development
-ENABLE_HTTPS=false
+SSL_CERT_FILE=ssl/localhost.crt
+SSL_KEY_FILE=ssl/localhost.key
 RATE_LIMIT=100
 RATE_LIMIT_WINDOW=1m
 ```
@@ -129,11 +109,8 @@ RATE_LIMIT_WINDOW=1m
 HOST=0.0.0.0
 PORT=443
 ENV=production
-ENABLE_HTTPS=true
 SSL_CERT_FILE=/etc/ssl/certs/app.crt
 SSL_KEY_FILE=/etc/ssl/private/app.key
-REDIRECT_HTTP=true
-HTTP_REDIRECT_PORT=80
 RATE_LIMIT=1000
 RATE_LIMIT_WINDOW=1m
 ```
@@ -147,18 +124,19 @@ PORT=9000
 
 ### HTTPS Configuration
 
-When `ENABLE_HTTPS=true`:
-- The application runs on HTTPS using the specified certificate and key
-- HTTP requests are automatically redirected to HTTPS (if `REDIRECT_HTTP=true`)
-- HSTS headers are automatically added to enforce HTTPS usage
-- All security headers are optimised for HTTPS
-- SSL certificate validation ensures:
+The application runs exclusively in HTTPS mode:
+- **SSL certificates are required** - the application will not start without valid certificates
+- **HSTS headers are always enabled** to enforce HTTPS usage
+- **All security headers are optimised** for HTTPS
+- **SSL certificate validation ensures**:
   - Certificate format is valid (PEM/DER)
   - Certificate is not expired
   - Certificate is not yet to be valid
   - Certificate expires within 30 days (warning)
   - Private key is compatible with certificate
   - RSA key size is at least 2048 bits
+
+**Note**: HTTP to HTTPS redirection is handled by Cloudflare or your reverse proxy, not by the application itself.
 
 ## Makefile Commands
 
@@ -170,7 +148,7 @@ make build
 # Run tests
 make test
 
-# Run the application (uses .env files)
+# Run the HTTPS application (requires SSL certificates)
 make run
 
 # Clean development files
@@ -204,7 +182,7 @@ make env-clean
 make docker
 
 # Run with Docker
-docker run -p 8443:8443 -e ENABLE_HTTPS=true \
+docker run -p 8443:8443 \
   -e SSL_CERT_FILE=/certs/cert.crt \
   -e SSL_KEY_FILE=/certs/key.key \
   guitar-specs
@@ -236,8 +214,8 @@ For production, use certificates from a trusted Certificate Authority:
 
 ## Security Considerations
 
-- **HTTPS Only**: In production, always use HTTPS with valid SSL certificates
-- **HSTS**: HTTP Strict Transport Security is automatically enabled for HTTPS connections
+- **HTTPS Only**: The application runs exclusively in HTTPS mode
+- **HSTS**: HTTP Strict Transport Security is always enabled
 - **Security Headers**: Comprehensive security headers protect against common web vulnerabilities:
   - Content Security Policy (CSP)
   - X-Frame-Options
@@ -247,6 +225,7 @@ For production, use certificates from a trusted Certificate Authority:
   - Permissions-Policy
 - **Rate Limiting**: Built-in rate limiting prevents abuse and DoS attacks
 - **Input Validation**: All user inputs are sanitised to prevent injection attacks
+- **SSL Validation**: Strict SSL certificate validation prevents security issues
 
 ## Performance Features
 
@@ -284,8 +263,9 @@ The application includes structured logging with comprehensive request details:
 ### Prerequisites
 1. **Valid SSL certificates** from trusted CA
 2. **Production environment** configuration
-3. **Proper port configuration** (80/443)
+3. **Proper port configuration** (443 for production)
 4. **Security hardening** (firewall, rate limiting)
+5. **Reverse proxy** (Cloudflare, nginx, etc.) for HTTP→HTTPS redirection
 
 ### Deployment Steps
 ```bash
@@ -297,18 +277,19 @@ cp .env.example .env.production
 make build
 
 # 3. Deploy with proper SSL certificates
-# 4. Configure reverse proxy if needed
+# 4. Configure reverse proxy for HTTP→HTTPS redirection
 # 5. Set up monitoring and logging
 ```
 
 ### Production Checklist
 - [ ] SSL certificates from trusted CA
 - [ ] Production environment configuration
-- [ ] Proper port configuration (80/443)
+- [ ] Proper port configuration (443)
 - [ ] Security headers enabled
 - [ ] Rate limiting configured
 - [ ] Monitoring and logging setup
 - [ ] Backup and recovery procedures
+- [ ] Reverse proxy configured for HTTP→HTTPS redirection
 
 ## Troubleshooting
 
@@ -331,7 +312,6 @@ make ssl-gen
 ```bash
 # Check if ports are in use
 lsof -i :8443
-lsof -i :8080
 
 # Kill processes if needed
 kill <PID>
@@ -344,6 +324,17 @@ make env-check
 
 # Verify .env file loading
 cat .env
+```
+
+#### Missing SSL Certificates
+```bash
+# The application requires SSL certificates to start
+# Generate them first:
+make ssl-gen
+
+# Or specify existing certificates in .env:
+echo "SSL_CERT_FILE=/path/to/cert.crt" >> .env
+echo "SSL_KEY_FILE=/path/to/key.key" >> .env
 ```
 
 ## Contributing

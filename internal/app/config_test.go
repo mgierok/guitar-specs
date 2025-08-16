@@ -11,7 +11,6 @@ func TestLoadConfig(t *testing.T) {
 		"HOST":          os.Getenv("HOST"),
 		"PORT":          os.Getenv("PORT"),
 		"ENV":           os.Getenv("ENV"),
-		"ENABLE_HTTPS":  os.Getenv("ENABLE_HTTPS"),
 		"SSL_CERT_FILE": os.Getenv("SSL_CERT_FILE"),
 		"SSL_KEY_FILE":  os.Getenv("SSL_KEY_FILE"),
 	}
@@ -32,7 +31,6 @@ func TestLoadConfig(t *testing.T) {
 		os.Unsetenv("HOST")
 		os.Unsetenv("PORT")
 		os.Unsetenv("ENV")
-		os.Unsetenv("ENABLE_HTTPS")
 		os.Unsetenv("SSL_CERT_FILE")
 		os.Unsetenv("SSL_KEY_FILE")
 
@@ -41,14 +39,11 @@ func TestLoadConfig(t *testing.T) {
 		if cfg.Host != "0.0.0.0" {
 			t.Errorf("Expected Host '0.0.0.0', got '%s'", cfg.Host)
 		}
-		if cfg.Port != "8080" {
-			t.Errorf("Expected Port '8080', got '%s'", cfg.Port)
+		if cfg.Port != "8443" {
+			t.Errorf("Expected Port '8443', got '%s'", cfg.Port)
 		}
 		if cfg.Env != "development" {
 			t.Errorf("Expected Env 'development', got '%s'", cfg.Env)
-		}
-		if cfg.EnableHTTPS != false {
-			t.Errorf("Expected EnableHTTPS false, got %v", cfg.EnableHTTPS)
 		}
 		if cfg.CertFile != "" {
 			t.Errorf("Expected empty CertFile, got '%s'", cfg.CertFile)
@@ -56,36 +51,14 @@ func TestLoadConfig(t *testing.T) {
 		if cfg.KeyFile != "" {
 			t.Errorf("Expected empty KeyFile, got '%s'", cfg.KeyFile)
 		}
-		if cfg.RedirectHTTP != false {
-			t.Errorf("Expected RedirectHTTP false (HTTPS disabled), got %v", cfg.RedirectHTTP)
-		}
-	})
-
-	t.Run("HTTPS enabled", func(t *testing.T) {
-		os.Setenv("ENABLE_HTTPS", "true")
-		os.Setenv("SSL_CERT_FILE", "/path/to/cert.crt")
-		os.Setenv("SSL_KEY_FILE", "/path/to/key.key")
-
-		cfg := LoadConfig()
-
-		if cfg.EnableHTTPS != true {
-			t.Errorf("Expected EnableHTTPS true, got %v", cfg.EnableHTTPS)
-		}
-		if cfg.CertFile != "/path/to/cert.crt" {
-			t.Errorf("Expected CertFile '/path/to/cert.crt', got '%s'", cfg.CertFile)
-		}
-		if cfg.KeyFile != "/path/to/key.key" {
-			t.Errorf("Expected KeyFile '/path/to/key.key', got '%s'", cfg.KeyFile)
-		}
-		if cfg.RedirectHTTP != true {
-			t.Errorf("Expected RedirectHTTP true, got %v", cfg.RedirectHTTP)
-		}
 	})
 
 	t.Run("custom values", func(t *testing.T) {
 		os.Setenv("HOST", "127.0.0.1")
 		os.Setenv("PORT", "9000")
 		os.Setenv("ENV", "production")
+		os.Setenv("SSL_CERT_FILE", "/path/to/cert.crt")
+		os.Setenv("SSL_KEY_FILE", "/path/to/key.key")
 
 		cfg := LoadConfig()
 
@@ -98,89 +71,71 @@ func TestLoadConfig(t *testing.T) {
 		if cfg.Env != "production" {
 			t.Errorf("Expected Env 'production', got '%s'", cfg.Env)
 		}
+		if cfg.CertFile != "/path/to/cert.crt" {
+			t.Errorf("Expected CertFile '/path/to/cert.crt', got '%s'", cfg.CertFile)
+		}
+		if cfg.KeyFile != "/path/to/key.key" {
+			t.Errorf("Expected KeyFile '/path/to/key.key', got '%s'", cfg.KeyFile)
+		}
 	})
 }
 
 func TestConfig_Addr(t *testing.T) {
 	cfg := Config{
 		Host: "localhost",
-		Port: "8080",
+		Port: "8443",
 	}
 
-	expected := "localhost:8080"
+	expected := "localhost:8443"
 	if addr := cfg.Addr(); addr != expected {
 		t.Errorf("Expected Addr '%s', got '%s'", expected, addr)
 	}
 }
 
-func TestConfig_AddrHTTPS(t *testing.T) {
-	cfg := Config{
-		Host: "0.0.0.0",
-		Port: "8443",
-	}
-
-	expected := "0.0.0.0:8443"
-	if addr := cfg.AddrHTTPS(); addr != expected {
-		t.Errorf("Expected AddrHTTPS '%s', got '%s'", expected, addr)
-	}
-}
-
-func TestConfig_AddrHTTP(t *testing.T) {
-	cfg := Config{
-		Host: "example.com",
-		Port: "8443", // This should be ignored for HTTP addr
-	}
-
-	expected := "example.com:80"
-	if addr := cfg.AddrHTTP(); addr != expected {
-		t.Errorf("Expected AddrHTTP '%s', got '%s'", expected, addr)
-	}
-}
-
 func TestConfig_ValidateHTTPS(t *testing.T) {
-	t.Run("HTTPS disabled should pass validation", func(t *testing.T) {
+	t.Run("valid configuration", func(t *testing.T) {
 		cfg := Config{
-			EnableHTTPS: false,
+			CertFile: "/path/to/cert.crt",
+			KeyFile:  "/path/to/key.key",
 		}
 
-		if err := cfg.ValidateHTTPS(); err != nil {
-			t.Errorf("Expected no error for disabled HTTPS, got %v", err)
+		// This will fail because files don't exist, but we can test the validation logic
+		err := cfg.ValidateHTTPS()
+		if err == nil {
+			t.Error("Expected error for non-existent files, got nil")
+		}
+		if err.Error() != "SSL certificate file not found: /path/to/cert.crt" {
+			t.Errorf("Expected specific error message, got: %v", err)
 		}
 	})
 
-	t.Run("HTTPS enabled without cert should fail", func(t *testing.T) {
+	t.Run("missing certificate file", func(t *testing.T) {
 		cfg := Config{
-			EnableHTTPS: true,
-			CertFile:    "",
-			KeyFile:     "",
+			CertFile: "",
+			KeyFile:  "/path/to/key.key",
 		}
 
-		if err := cfg.ValidateHTTPS(); err == nil {
-			t.Error("Expected error for missing certificate file")
+		err := cfg.ValidateHTTPS()
+		if err == nil {
+			t.Error("Expected error for missing certificate file, got nil")
+		}
+		if err.Error() != "SSL_CERT_FILE not specified" {
+			t.Errorf("Expected specific error message, got: %v", err)
 		}
 	})
 
-	t.Run("HTTPS enabled without key should fail", func(t *testing.T) {
+	t.Run("missing private key file", func(t *testing.T) {
 		cfg := Config{
-			EnableHTTPS: true,
-			CertFile:    "/path/to/cert.crt",
-			KeyFile:     "",
+			CertFile: "/path/to/cert.crt",
+			KeyFile:  "",
 		}
 
-		if err := cfg.ValidateHTTPS(); err == nil {
-			t.Error("Expected error for missing key file")
+		err := cfg.ValidateHTTPS()
+		if err == nil {
+			t.Error("Expected error for missing private key file, got nil")
 		}
-	})
-
-	t.Run("HTTPS enabled with non-existent files should fail", func(t *testing.T) {
-		cfg := Config{
-			EnableHTTPS: true,
-			CertFile:    "/nonexistent/cert.crt",
-			KeyFile:     "/nonexistent/key.key",
-		}
-
-		if err := cfg.ValidateHTTPS(); err == nil {
-			t.Error("Expected error for non-existent files")
+		if err.Error() != "SSL_KEY_FILE not specified" {
+			t.Errorf("Expected specific error message, got: %v", err)
 		}
 	})
 }

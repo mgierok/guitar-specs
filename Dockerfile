@@ -8,9 +8,6 @@ COPY . .
 # Install brotli for precompression (gzip is available by default)
 RUN apt-get update && apt-get install -y --no-install-recommends brotli && rm -rf /var/lib/apt/lists/*
 
-# Precompress static assets so they are embedded into the binary
-RUN make assets-precompress
-
 # Build the app
 RUN go generate ./... && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/web ./cmd/web
 
@@ -18,6 +15,6 @@ RUN go generate ./... && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /o
 FROM gcr.io/distroless/base-debian12
 WORKDIR /app
 COPY --from=build /out/web /app/web
-EXPOSE 8080
+EXPOSE 8443
 USER nonroot:nonroot
 ENTRYPOINT ["/app/web"]
