@@ -52,12 +52,7 @@ func New(cfg Config) *App {
 	r.Use(mw.SlogLogger(logger))            // Structured request logging
 	r.Use(chimw.Timeout(mw.DefaultTimeout)) // Request timeout protection
 	r.Use(mw.SecurityHeaders)               // Security headers (CSP, XSS protection, etc.)
-	// Note: HSTS is handled by Cloudflare CDN layer
-
-	// Rate limiting: configurable requests per minute per IP address
-	// This protects against abuse and ensures fair resource distribution
-	rateLimiter := mw.NewRateLimiter(cfg.RateLimit, cfg.RateLimitWindow)
-	r.Use(rateLimiter.RateLimit)
+	// Note: HSTS and rate limiting are handled by Cloudflare CDN layer
 
 	// Compute per-file hashes for static assets to enable cache busting
 	// This ensures clients always receive the latest version when assets change

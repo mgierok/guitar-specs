@@ -7,7 +7,6 @@ A secure and performant Go web application with **HTTPS-only** operation, compre
 ### Security Features
 - **HTTPS Only**: Application runs exclusively in HTTPS mode with SSL certificate validation
 - **Security Headers**: Comprehensive security headers including CSP, XSS protection, and other security measures
-- **Rate Limiting**: IP-based rate limiting to prevent abuse and DoS attacks
 - **Input Sanitisation**: Log sanitisation to prevent injection attacks
 - **SSL Certificate Validation**: Automatic validation of certificate format, expiry, and key compatibility
 
@@ -86,8 +85,6 @@ The application loads configuration from `.env` files with the following priorit
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `TRUSTED_PROXIES` | `127.0.0.1,::1` | Comma-separated list of trusted proxy IPs |
-| `RATE_LIMIT` | `100` | Requests per minute per IP address |
-| `RATE_LIMIT_WINDOW` | `1m` | Rate limit window (e.g., 1m, 5m, 1h) |
 
 ### Creating Environment Files
 
@@ -99,8 +96,6 @@ PORT=8443
 ENV=development
 SSL_CERT_FILE=ssl/localhost.crt
 SSL_KEY_FILE=ssl/localhost.key
-RATE_LIMIT=100
-RATE_LIMIT_WINDOW=1m
 ```
 
 #### Production Configuration
@@ -111,8 +106,6 @@ PORT=443
 ENV=production
 SSL_CERT_FILE=/etc/ssl/certs/app.crt
 SSL_KEY_FILE=/etc/ssl/private/app.key
-RATE_LIMIT=1000
-RATE_LIMIT_WINDOW=1m
 ```
 
 #### Local Overrides
@@ -221,7 +214,6 @@ For production, use certificates from a trusted Certificate Authority:
   - X-XSS-Protection
   - Referrer-Policy
   - Permissions-Policy
-- **Rate Limiting**: Built-in rate limiting prevents abuse and DoS attacks
 - **Input Validation**: All user inputs are sanitised to prevent injection attacks
 - **SSL Validation**: Strict SSL certificate validation prevents security issues
 - **CDN Security**: HSTS and HTTP→HTTPS redirection handled by Cloudflare
@@ -244,7 +236,7 @@ For production, use certificates from a trusted Certificate Authority:
 The application includes structured logging with comprehensive request details:
 - **Request Information**: Method, path, status code, response time
 - **Client Details**: IP address, user agent, trusted proxy handling
-- **Security Events**: Rate limiting violations, SSL validation errors
+- **Security Events**: SSL validation errors, security violations
 - **Performance Metrics**: Asset versioning status, compression ratios
 
 ### Log Format
@@ -263,7 +255,7 @@ The application includes structured logging with comprehensive request details:
 1. **Valid SSL certificates** from trusted CA
 2. **Production environment** configuration
 3. **Proper port configuration** (443 for production)
-4. **Security hardening** (firewall, rate limiting)
+4. **Security hardening** (firewall, CDN protection)
 5. **Reverse proxy** (Cloudflare, nginx, etc.) for HTTP→HTTPS redirection
 
 ### Deployment Steps
@@ -285,10 +277,10 @@ make build
 - [ ] Production environment configuration
 - [ ] Proper port configuration (443)
 - [ ] Security headers enabled
-- [ ] Rate limiting configured
 - [ ] Monitoring and logging setup
 - [ ] Backup and recovery procedures
 - [ ] Reverse proxy configured for HTTP→HTTPS redirection
+- [ ] CDN configured for rate limiting and DDoS protection
 
 ## Troubleshooting
 
