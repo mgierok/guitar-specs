@@ -10,9 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	chimw "github.com/go-chi/chi/v5/middleware"
-
 	h "guitar-specs/internal/http/handlers"
 	mw "guitar-specs/internal/http/middleware"
 	"guitar-specs/internal/render"
@@ -29,7 +26,7 @@ type App struct {
 
 // New creates and configures a new application instance.
 // It sets up the router, middleware stack, handlers, and asset versioning system.
-// The function follows a clear middleware ordering: security → rate limiting → logging → compression.
+// The function follows a clear middleware ordering: security → logging → timeout → compression.
 // All middleware is thread-safe and designed for concurrent use.
 func New(cfg Config) *App {
 	// Create structured logger with text output for development and production
@@ -37,22 +34,8 @@ func New(cfg Config) *App {
 		Level: slog.LevelInfo,
 	}))
 
-	// Initialize router with proper error handling
-	r := chi.NewRouter()
-	if r == nil {
-		panic("failed to create chi router")
-	}
-
-	// Standard middleware stack applied to all dynamic routes
-	// These provide request identification, security, logging, and timeout protection
-	// Order is critical: RequestID → RealIP → Recoverer → Logging → Timeout → Security
-	r.Use(chimw.RequestID)                  // Unique request identifier for tracing
-	r.Use(chimw.RealIP)                     // Extract real client IP from proxy headers
-	r.Use(chimw.Recoverer)                  // Panic recovery and graceful error handling
-	r.Use(mw.SlogLogger(logger))            // Structured request logging
-	r.Use(chimw.Timeout(mw.DefaultTimeout)) // Request timeout protection
-	r.Use(mw.SecurityHeaders)               // Security headers (CSP, XSS protection, etc.)
-	// Note: HSTS and rate limiting are handled by Cloudflare CDN layer
+	// Initialize standard Go 1.22 router with pattern matching
+	mux := http.NewServeMux()
 
 	// Compute per-file hashes for static assets to enable cache busting
 	// This ensures clients always receive the latest version when assets change
@@ -96,55 +79,83 @@ func New(cfg Config) *App {
 	// Templates can now use {{ asset "/static/css/main.css" }} for cache-busted URLs
 	ren := render.NewWithFuncs(web.TemplatesFS, template.FuncMap{"asset": assetFunc})
 
-	// Static file serving group with aggressive caching
-	// These files are served without verbose logging and with long-lived cache headers
-	r.Group(func(r chi.Router) {
+	// Create page handlers
+	pages := h.New(ren, web.RobotsFS)
+
+	// Static file serving with aggressive caching
+	// These files are served with long-lived cache headers
+	staticHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Long-lived, immutable cache is safe because URLs change when content changes
 		// This enables maximum browser caching for static assets
-		r.Use(func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-				next.ServeHTTP(w, req)
-			})
-		})
-
-		// Serve static files with intelligent compression and caching
-		// PrecompressedFileServer automatically selects the best compression format
-		r.Handle("/static/*", http.StripPrefix("/static/", mw.PrecompressedFileServer(sub)))
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		mw.PrecompressedFileServer(sub).ServeHTTP(w, r)
 	})
 
 	// Dynamic page routes with compression and caching optimisations
 	// These routes generate HTML content that benefits from compression and ETag caching
-	pages := h.New(ren, web.RobotsFS)
-	r.Group(func(r chi.Router) {
+	dynamicHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Add ETag for better caching (BEFORE compression)
 		// ETag middleware must run before compression to ensure headers are set correctly
-		r.Use(mw.ETag)
-
-		// Apply compression to dynamic responses for bandwidth reduction
-		// Static assets are handled separately with precompression
-		r.Use(chimw.Compress(5,
-			"text/html", "text/css", "application/javascript",
-			"application/json", "image/svg+xml",
-		))
-
-		// Page routes that generate dynamic HTML content
-		r.Get("/", pages.Home)           // Homepage
-		r.Get("/about", pages.About)     // About page
-		r.Get("/contact", pages.Contact) // Contact page
+		etagHandler := mw.ETag(
+			// Apply compression to dynamic responses for bandwidth reduction
+			mw.Compress(5,
+				"text/html", "text/css", "application/javascript",
+				"application/json", "image/svg+xml",
+			)(
+				// Route to appropriate page handler
+				routePageHandler(pages, w, r),
+			),
+		)
+		etagHandler.ServeHTTP(w, r)
 	})
+
+	// Register routes with pattern matching
+	mux.Handle("/static/", http.StripPrefix("/static/", staticHandler))
+	mux.Handle("/", dynamicHandler)
+	mux.Handle("/about", dynamicHandler)
+	mux.Handle("/contact", dynamicHandler)
 
 	// Utility endpoints that don't require compression
 	// These are small, frequently accessed responses
-	r.Get("/robots.txt", pages.RobotsTxt) // Search engine crawling instructions
-	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/robots.txt", pages.RobotsTxt) // Search engine crawling instructions
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
 
+	// Apply middleware stack to all routes
+	// Order is critical: RequestID → RealIP → Recoverer → Logging → Timeout → Security
+	handler := mw.RequestID(
+		mw.RealIP(cfg.TrustedProxies)(
+			mw.Recoverer(logger)(
+				mw.SlogLogger(logger)(
+					mw.Timeout(mw.DefaultTimeout)(
+						mw.SecurityHeaders(mux),
+					),
+				),
+			),
+		),
+	)
+
 	return &App{
 		Config: cfg,
 		Logger: logger,
-		Router: r,
+		Router: handler,
 	}
+}
+
+// routePageHandler routes page requests to the appropriate handler.
+func routePageHandler(pages *h.Pages, w http.ResponseWriter, r *http.Request) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/":
+			pages.Home(w, r)
+		case "/about":
+			pages.About(w, r)
+		case "/contact":
+			pages.Contact(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
 }
