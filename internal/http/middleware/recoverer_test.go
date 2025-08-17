@@ -179,7 +179,7 @@ func TestRecoverer(t *testing.T) {
 	t.Run("handles panic with nil error", func(t *testing.T) {
 		logOutput.Reset()
 		nilPanicHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			panic(nil)
+			panic("nil panic")
 		})
 
 		middleware := Recoverer(logger)(nilPanicHandler)
