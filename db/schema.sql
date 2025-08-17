@@ -67,42 +67,6 @@ COMMENT ON EXTENSION pgcrypto IS 'cryptographic functions';
 
 
 --
--- Name: body_shape; Type: TYPE; Schema: public; Owner: -
---
-
-CREATE TYPE public.body_shape AS ENUM (
-    'stratocaster',
-    'telecaster',
-    'superstrat',
-    'offset',
-    'vshape',
-    'explorer',
-    'singlecut',
-    'doublecut'
-);
-
-
---
--- Name: brand; Type: TYPE; Schema: public; Owner: -
---
-
-CREATE TYPE public.brand AS ENUM (
-    'fender',
-    'squier',
-    'gibson',
-    'epiphone',
-    'ibanez',
-    'jackson',
-    'charvel',
-    'prs',
-    'yamaha',
-    'schecter',
-    'esp',
-    'ltd'
-);
-
-
---
 -- Name: feature_kind; Type: TYPE; Schema: public; Owner: -
 --
 
@@ -143,6 +107,29 @@ END$$;
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
+
+--
+-- Name: brands; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.brands (
+    slug public.citext NOT NULL,
+    name text NOT NULL,
+    about text,
+    website_url text,
+    wikipedia_url text,
+    logo_url text,
+    country_code text,
+    founded_year integer,
+    headquarters text,
+    meta jsonb DEFAULT '{}'::jsonb NOT NULL,
+    CONSTRAINT brands_founded_year_check CHECK (((founded_year IS NULL) OR ((founded_year >= 1700) AND (founded_year <= 2100)))),
+    CONSTRAINT brands_logo_url_check CHECK (((logo_url IS NULL) OR (logo_url ~ '^https?://'::text))),
+    CONSTRAINT brands_slug_check CHECK ((slug OPERATOR(public.~) '^[a-z0-9-]+$'::public.citext)),
+    CONSTRAINT brands_website_url_check CHECK (((website_url IS NULL) OR (website_url ~ '^https?://'::text))),
+    CONSTRAINT brands_wikipedia_url_check CHECK (((wikipedia_url IS NULL) OR (wikipedia_url ~ '^https?://'::text)))
+);
+
 
 --
 -- Name: feature_allowed_values; Type: TABLE; Schema: public; Owner: -
@@ -248,11 +235,24 @@ CREATE TABLE public.guitars (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     slug public.citext NOT NULL,
     type public.guitar_type NOT NULL,
-    shape public.body_shape NOT NULL,
-    brand public.brand NOT NULL,
     model text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    shape_slug public.citext NOT NULL,
+    brand_slug public.citext NOT NULL
+);
+
+
+--
+-- Name: shapes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.shapes (
+    slug public.citext NOT NULL,
+    name text NOT NULL,
+    description text,
+    meta jsonb DEFAULT '{}'::jsonb NOT NULL,
+    CONSTRAINT shapes_slug_check CHECK ((slug OPERATOR(public.~) '^[a-z0-9-]+$'::public.citext))
 );
 
 
@@ -268,6 +268,14 @@ ALTER TABLE ONLY public.feature_allowed_values ALTER COLUMN id SET DEFAULT nextv
 --
 
 ALTER TABLE ONLY public.features ALTER COLUMN id SET DEFAULT nextval('public.features_id_seq'::regclass);
+
+
+--
+-- Name: brands brands_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.brands
+    ADD CONSTRAINT brands_pkey PRIMARY KEY (slug);
 
 
 --
@@ -327,6 +335,28 @@ ALTER TABLE ONLY public.guitars
 
 
 --
+-- Name: shapes shapes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.shapes
+    ADD CONSTRAINT shapes_pkey PRIMARY KEY (slug);
+
+
+--
+-- Name: idx_brands_meta_gin; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_brands_meta_gin ON public.brands USING gin (meta);
+
+
+--
+-- Name: idx_brands_name_trgm; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_brands_name_trgm ON public.brands USING gin (name public.gin_trgm_ops);
+
+
+--
 -- Name: idx_guitar_features_allowed; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -355,10 +385,10 @@ CREATE INDEX idx_guitar_features_num ON public.guitar_features USING btree (valu
 
 
 --
--- Name: idx_guitars_brand; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_guitars_brand_slug; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_guitars_brand ON public.guitars USING btree (brand);
+CREATE INDEX idx_guitars_brand_slug ON public.guitars USING btree (brand_slug);
 
 
 --
@@ -369,10 +399,10 @@ CREATE INDEX idx_guitars_model_trgm ON public.guitars USING gin (model public.gi
 
 
 --
--- Name: idx_guitars_shape; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_guitars_shape_slug; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_guitars_shape ON public.guitars USING btree (shape);
+CREATE INDEX idx_guitars_shape_slug ON public.guitars USING btree (shape_slug);
 
 
 --
@@ -380,6 +410,20 @@ CREATE INDEX idx_guitars_shape ON public.guitars USING btree (shape);
 --
 
 CREATE INDEX idx_guitars_type ON public.guitars USING btree (type);
+
+
+--
+-- Name: idx_shapes_meta_gin; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_shapes_meta_gin ON public.shapes USING gin (meta);
+
+
+--
+-- Name: idx_shapes_name_trgm; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_shapes_name_trgm ON public.shapes USING gin (name public.gin_trgm_ops);
 
 
 --
@@ -395,6 +439,22 @@ CREATE TRIGGER trg_guitars_updated_at BEFORE UPDATE ON public.guitars FOR EACH R
 
 ALTER TABLE ONLY public.feature_allowed_values
     ADD CONSTRAINT feature_allowed_values_feature_id_fkey FOREIGN KEY (feature_id) REFERENCES public.features(id) ON DELETE CASCADE;
+
+
+--
+-- Name: guitars fk_guitars_brand_slug; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.guitars
+    ADD CONSTRAINT fk_guitars_brand_slug FOREIGN KEY (brand_slug) REFERENCES public.brands(slug) ON UPDATE RESTRICT ON DELETE RESTRICT;
+
+
+--
+-- Name: guitars fk_guitars_shape_slug; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.guitars
+    ADD CONSTRAINT fk_guitars_shape_slug FOREIGN KEY (shape_slug) REFERENCES public.shapes(slug) ON UPDATE RESTRICT ON DELETE RESTRICT;
 
 
 --
