@@ -32,6 +32,7 @@ func main() {
 	}
 
 	a := app.New(cfg)
+	defer a.Close()
 
 	// Create HTTPS server
 	srv := &http.Server{

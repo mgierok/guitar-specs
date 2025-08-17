@@ -24,6 +24,17 @@ type Config struct {
 	CertFile string // Path to SSL certificate file
 	KeyFile  string // Path to SSL private key file
 
+	// Database configuration (split parameters)
+	DBHost     string // PostgreSQL host
+	DBPort     string // PostgreSQL port (default: 5432)
+	DBUser     string // PostgreSQL user
+	DBPassword string // PostgreSQL password
+	DBName     string // PostgreSQL database name
+	DBSSLMode  string // sslmode (disable, require, verify-ca, verify-full)
+
+	// Backward-compatibility: full connection string, used if split params are empty
+	DatabaseURL string // PostgreSQL connection string (pgx format)
+
 	// Advanced configuration options
 	ReadTimeout       time.Duration // Request read timeout (default: 10s)
 	WriteTimeout      time.Duration // Response write timeout (default: 30s)
@@ -51,6 +62,17 @@ func LoadConfig() Config {
 		// SSL Configuration
 		CertFile: getenv("SSL_CERT_FILE", ""), // SSL certificate file path
 		KeyFile:  getenv("SSL_KEY_FILE", ""),  // SSL private key file path
+
+		// Database (split parameters)
+		DBHost:     getenv("DB_HOST", ""),
+		DBPort:     getenv("DB_PORT", "5432"),
+		DBUser:     getenv("DB_USER", ""),
+		DBPassword: getenv("DB_PASSWORD", ""),
+		DBName:     getenv("DB_NAME", ""),
+		DBSSLMode:  getenv("DB_SSLMODE", "disable"),
+
+		// Backward-compatibility: full DSN
+		DatabaseURL: getenv("DATABASE_URL", ""),
 
 		// Advanced configuration options
 		ReadTimeout:       getDuration("READ_TIMEOUT", 10*time.Second),

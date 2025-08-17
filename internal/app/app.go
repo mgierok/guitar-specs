@@ -1,14 +1,18 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	h "guitar-specs/internal/http/handlers"
 	mw "guitar-specs/internal/http/middleware"
@@ -19,9 +23,10 @@ import (
 // App represents the core application structure and holds all dependencies.
 // It encapsulates the HTTP router, configuration, logging, and middleware stack.
 type App struct {
-	Config Config       // Application configuration (host, port, environment)
-	Logger *slog.Logger // Structured logger for application events
-	Router http.Handler // HTTP router with all middleware and routes configured
+	Config Config        // Application configuration (host, port, environment)
+	Logger *slog.Logger  // Structured logger for application events
+	Router http.Handler  // HTTP router with all middleware and routes configured
+	DB     *pgxpool.Pool // PostgreSQL connection pool
 }
 
 // New creates and configures a new application instance.
@@ -33,6 +38,27 @@ func New(cfg Config) *App {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	}))
+
+	// Database connection is mandatory
+	dsn := buildPostgresDSN(cfg)
+	if dsn == "" {
+		logger.Error("database configuration missing; set split DB_* env vars or DATABASE_URL")
+		panic("database configuration missing")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		logger.Error("database pool init failed", "err", err)
+		panic(fmt.Sprintf("database init failed: %v", err))
+	}
+	if err := pool.Ping(ctx); err != nil {
+		logger.Error("database ping failed", "err", err)
+		panic(fmt.Sprintf("database ping failed: %v", err))
+	}
+	logger.Info("database connected")
 
 	// Initialize standard Go 1.22 router with pattern matching
 	mux := http.NewServeMux()
@@ -127,5 +153,35 @@ func New(cfg Config) *App {
 		Config: cfg,
 		Logger: logger,
 		Router: handler,
+		DB:     pool,
+	}
+}
+
+// buildPostgresDSN assembles a pgx DSN from split parameters if provided; otherwise returns DatabaseURL.
+func buildPostgresDSN(cfg Config) string {
+	if cfg.DBHost == "" && cfg.DatabaseURL != "" {
+		return cfg.DatabaseURL
+	}
+	if cfg.DBHost == "" || cfg.DBUser == "" || cfg.DBName == "" {
+		return ""
+	}
+	u := &url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(cfg.DBUser, cfg.DBPassword),
+		Host:   fmt.Sprintf("%s:%s", cfg.DBHost, cfg.DBPort),
+		Path:   "/" + cfg.DBName,
+	}
+	q := url.Values{}
+	if cfg.DBSSLMode != "" {
+		q.Set("sslmode", cfg.DBSSLMode)
+	}
+	u.RawQuery = q.Encode()
+	return u.String()
+}
+
+// Close releases application resources.
+func (a *App) Close() {
+	if a.DB != nil {
+		a.DB.Close()
 	}
 }
