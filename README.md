@@ -13,7 +13,6 @@ A secure and performant Go web application with **HTTPS-only** operation, compre
 ### Performance Features
 - **Static Asset Compression**: Pre-compressed Brotli and Gzip files with intelligent fallback
 - **Asset Versioning**: Cache-busting URLs for static assets with long-lived caching
-- **ETag Support**: HTTP caching with content-based ETags for dynamic content
 - **Buffer Pooling**: Efficient memory management for template rendering using sync.Pool
 - **Precompressed Assets**: Brotli and Gzip compression for maximum bandwidth savings
 
@@ -227,7 +226,6 @@ For production, use certificates from a trusted Certificate Authority:
 - **Intelligent Fallback**: Automatic selection of best compression format
 
 ### Dynamic Content Optimisation
-- **ETag Caching**: Content-based ETags for efficient caching
 - **Compression**: Automatic compression for HTML, CSS, JavaScript, and JSON
 - **Buffer Pooling**: Efficient memory management for template rendering
 
