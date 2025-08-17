@@ -91,37 +91,39 @@ func New(cfg Config) *App {
 		mw.PrecompressedFileServer(sub).ServeHTTP(w, r)
 	})
 
-	// Dynamic page routes with compression and caching optimisations
-	// These routes generate HTML content that benefits from compression and ETag caching
-	dynamicHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Add ETag for better caching (BEFORE compression)
-		// ETag middleware must run before compression to ensure headers are set correctly
-		etagHandler := mw.ETag(
-			// Apply compression to dynamic responses for bandwidth reduction
-			mw.Compress(5,
-				"text/html", "text/css", "application/javascript",
-				"application/json", "image/svg+xml",
-			)(
-				// Route to appropriate page handler
-				routePageHandler(pages, w, r),
-			),
-		)
-		etagHandler.ServeHTTP(w, r)
-	})
+	// Create middleware-wrapped page handlers with compression and caching
+	// Each route gets its own middleware stack with specific content type compression
+	homeHandler := mw.ETag(
+		mw.Compress(5, "text/html")(
+			http.HandlerFunc(pages.Home),
+		),
+	)
 
-	// Register routes with pattern matching
+	aboutHandler := mw.ETag(
+		mw.Compress(5, "text/html")(
+			http.HandlerFunc(pages.About),
+		),
+	)
+
+	contactHandler := mw.ETag(
+		mw.Compress(5, "text/html")(
+			http.HandlerFunc(pages.Contact),
+		),
+	)
+
+	// Register routes with Go 1.22+ pattern matching
+	// This provides automatic 405 Method Not Allowed and Allow headers
+	// Order matters: more specific patterns first, then general ones
 	mux.Handle("/static/", http.StripPrefix("/static/", staticHandler))
-	mux.Handle("/", dynamicHandler)
-	mux.Handle("/about", dynamicHandler)
-	mux.Handle("/contact", dynamicHandler)
-
-	// Utility endpoints that don't require compression
-	// These are small, frequently accessed responses
-	mux.HandleFunc("/robots.txt", pages.RobotsTxt) // Search engine crawling instructions
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("GET /about", aboutHandler)
+	mux.Handle("GET /contact", contactHandler)
+	mux.Handle("GET /robots.txt", http.HandlerFunc(pages.RobotsTxt))
+	mux.Handle("GET /healthz", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
-	})
+	}))
+	// Root path without pattern matching to avoid conflicts with /static/
+	mux.Handle("/", homeHandler)
 
 	// Apply middleware stack to all routes
 	// Order is critical: RequestID → RealIP → Recoverer → ContextLogging → Timeout → Security
@@ -142,20 +144,4 @@ func New(cfg Config) *App {
 		Logger: logger,
 		Router: handler,
 	}
-}
-
-// routePageHandler routes page requests to the appropriate handler.
-func routePageHandler(pages *h.Pages, w http.ResponseWriter, r *http.Request) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/":
-			pages.Home(w, r)
-		case "/about":
-			pages.About(w, r)
-		case "/contact":
-			pages.Contact(w, r)
-		default:
-			http.NotFound(w, r)
-		}
-	})
 }
