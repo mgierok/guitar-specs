@@ -18,7 +18,7 @@
       {{ range .guitars }}
       <tr>
         <td>{{ .BrandName }}</td>
-        <td>{{ .Model }}</td>
+        <td><a href="/guitar/{{ .Slug }}">{{ .Model }}</a></td>
         <td>{{ .Type }}</td>
         <td>{{ .ShapeName }}</td>
         <td>{{ .Slug }}</td>

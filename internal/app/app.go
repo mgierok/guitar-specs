@@ -131,6 +131,7 @@ func New(cfg Config) *App {
 	mux.Handle("GET /contact", contactHandler)
 	mux.Handle("GET /robots.txt", http.HandlerFunc(pages.RobotsTxt))
 	mux.Handle("GET /guitars", http.HandlerFunc(pages.Guitars))
+	mux.Handle("GET /guitar/", http.HandlerFunc(pages.GuitarDetail))
 	mux.Handle("GET /healthz", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))

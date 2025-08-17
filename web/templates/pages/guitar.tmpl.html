@@ -1,0 +1,21 @@
+{{ define "content" }}
+<h1>{{ .guitar.BrandName }} {{ .guitar.Model }}</h1>
+<p>
+  <strong>Type:</strong> {{ .guitar.Type }}<br/>
+  <strong>Shape:</strong> {{ .guitar.ShapeName }}<br/>
+  <strong>Slug:</strong> {{ .guitar.Slug }}
+</p>
+
+<h2>Features</h2>
+{{ if not .features }}
+  <p>No features defined.</p>
+{{ else }}
+  <ul>
+    {{ range .features }}
+      <li><strong>{{ .FeatureLabel }}:</strong> {{ if .ValueDisplay }}{{ .ValueDisplay }}{{ else }}-{{ end }}</li>
+    {{ end }}
+  </ul>
+{{ end }}
+{{ end }}
+
+
