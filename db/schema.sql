@@ -67,6 +67,20 @@ COMMENT ON EXTENSION pgcrypto IS 'cryptographic functions';
 
 
 --
+-- Name: unaccent; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS unaccent WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION unaccent; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION unaccent IS 'text search dictionary that removes accents';
+
+
+--
 -- Name: feature_kind; Type: TYPE; Schema: public; Owner: -
 --
 
@@ -92,6 +106,31 @@ CREATE TYPE public.guitar_type AS ENUM (
 
 
 --
+-- Name: guitars_unique_slug(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.guitars_unique_slug(base text) RETURNS text
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  candidate text := base;
+  n integer := 1;
+BEGIN
+  IF candidate IS NULL OR btrim(candidate) = '' THEN
+    RAISE EXCEPTION 'guitars_unique_slug: empty base slug';
+  END IF;
+
+  WHILE EXISTS (SELECT 1 FROM public.guitars WHERE slug = candidate) LOOP
+    n := n + 1;
+    candidate := base || '-' || n::text;
+  END LOOP;
+
+  RETURN candidate;
+END
+$$;
+
+
+--
 -- Name: set_updated_at(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -102,6 +141,48 @@ BEGIN
   NEW.updated_at := now();
   RETURN NEW;
 END$$;
+
+
+--
+-- Name: slugify(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.slugify(txt text) RETURNS text
+    LANGUAGE plpgsql IMMUTABLE
+    AS $_$
+DECLARE
+  s text := coalesce(txt,'');
+BEGIN
+  s := unaccent(s);
+  s := replace(s, '&', ' and ');
+  s := lower(s);
+  s := regexp_replace(s, '[^a-z0-9]+', '-', 'g');
+  s := regexp_replace(s, '(^-+|-+$)', '', 'g');
+  s := regexp_replace(s, '-{2,}', '-', 'g');
+  RETURN s;
+END
+$_$;
+
+
+--
+-- Name: trg_guitars_set_slug(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.trg_guitars_set_slug() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  base text;
+BEGIN
+  IF NEW.slug IS NULL OR btrim(NEW.slug) = '' THEN
+    base := public.slugify(NEW.brand_slug) || '-' || public.slugify(NEW.model);
+    NEW.slug := public.guitars_unique_slug(base);
+  ELSE
+    NEW.slug := public.guitars_unique_slug(public.slugify(NEW.slug));
+  END IF;
+  RETURN NEW;
+END
+$$;
 
 
 SET default_tablespace = '';
@@ -389,6 +470,20 @@ CREATE INDEX idx_shapes_name_trgm ON public.shapes USING gin (name public.gin_tr
 --
 
 CREATE UNIQUE INDEX uq_gf_guitar_feature ON public.guitar_features USING btree (guitar_id, feature_id);
+
+
+--
+-- Name: ux_guitars_slug; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX ux_guitars_slug ON public.guitars USING btree (slug);
+
+
+--
+-- Name: guitars trg_guitars_set_slug; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_guitars_set_slug BEFORE INSERT ON public.guitars FOR EACH ROW EXECUTE FUNCTION public.trg_guitars_set_slug();
 
 
 --
