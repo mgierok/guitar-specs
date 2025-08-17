@@ -385,6 +385,13 @@ CREATE INDEX idx_shapes_name_trgm ON public.shapes USING gin (name public.gin_tr
 
 
 --
+-- Name: uq_gf_guitar_feature; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_gf_guitar_feature ON public.guitar_features USING btree (guitar_id, feature_id);
+
+
+--
 -- Name: guitars trg_guitars_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -437,6 +444,84 @@ ALTER TABLE ONLY public.guitar_features
 
 ALTER TABLE ONLY public.guitar_features
     ADD CONSTRAINT guitar_features_guitar_id_fkey FOREIGN KEY (guitar_id) REFERENCES public.guitars(id) ON DELETE CASCADE;
+
+
+--
+-- Name: SCHEMA public; Type: ACL; Schema: -; Owner: -
+--
+
+GRANT USAGE ON SCHEMA public TO guitar_specs_ro;
+GRANT USAGE ON SCHEMA public TO guitar_specs_web;
+
+
+--
+-- Name: TABLE brands; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT ON TABLE public.brands TO guitar_specs_ro;
+
+
+--
+-- Name: TABLE feature_allowed_values; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT ON TABLE public.feature_allowed_values TO guitar_specs_ro;
+
+
+--
+-- Name: SEQUENCE feature_allowed_values_id_seq; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT ON SEQUENCE public.feature_allowed_values_id_seq TO guitar_specs_ro;
+
+
+--
+-- Name: TABLE features; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT ON TABLE public.features TO guitar_specs_ro;
+
+
+--
+-- Name: TABLE guitar_features; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT ON TABLE public.guitar_features TO guitar_specs_ro;
+
+
+--
+-- Name: TABLE guitar_features_resolved; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT ON TABLE public.guitar_features_resolved TO guitar_specs_ro;
+
+
+--
+-- Name: TABLE guitars; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT ON TABLE public.guitars TO guitar_specs_ro;
+
+
+--
+-- Name: TABLE shapes; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT ON TABLE public.shapes TO guitar_specs_ro;
+
+
+--
+-- Name: DEFAULT PRIVILEGES FOR SEQUENCES; Type: DEFAULT ACL; Schema: public; Owner: -
+--
+
+ALTER DEFAULT PRIVILEGES FOR ROLE guitar_specs_owner IN SCHEMA public GRANT SELECT ON SEQUENCES TO guitar_specs_ro;
+
+
+--
+-- Name: DEFAULT PRIVILEGES FOR TABLES; Type: DEFAULT ACL; Schema: public; Owner: -
+--
+
+ALTER DEFAULT PRIVILEGES FOR ROLE guitar_specs_owner IN SCHEMA public GRANT SELECT ON TABLES TO guitar_specs_ro;
 
 
 --
