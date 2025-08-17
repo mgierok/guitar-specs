@@ -11,15 +11,12 @@ ssl-clean:
 	@echo "✓ SSL certificates removed"
 
 run:
-	go generate ./...
 	go run ./cmd/web
 
 build:
-	go generate ./...
 	CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o bin/web ./cmd/web
 
 test:
-	go generate ./...
 	go test ./...
 
 env-check:

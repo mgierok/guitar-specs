@@ -86,9 +86,8 @@ func New(cfg Config) *App {
 	// These files are served with long-lived cache headers
 	staticHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Long-lived, immutable cache is safe because URLs change when content changes
-		// This enables maximum browser caching for static assets
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-		mw.PrecompressedFileServer(sub).ServeHTTP(w, r)
+		http.FileServer(http.FS(sub)).ServeHTTP(w, r)
 	})
 
 	// Create page handlers (no compression)

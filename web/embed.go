@@ -1,5 +1,3 @@
-//go:generate go run ../cmd/genstatic -src=static -brotli -gzip
-
 package web
 
 import (

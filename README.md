@@ -11,10 +11,8 @@ A secure and performant Go web application with **HTTPS-only** operation, compre
 - **SSL Certificate Validation**: Automatic validation of certificate format, expiry, and key compatibility
 
 ### Performance Features
-- **Static Asset Compression**: Pre-compressed Brotli and Gzip files with intelligent fallback
 - **Asset Versioning**: Cache-busting URLs for static assets with long-lived caching
 - **Buffer Pooling**: Efficient memory management for template rendering using sync.Pool
-- **Precompressed Assets**: Brotli and Gzip compression for maximum bandwidth savings
 
 ## Quick Start
 
@@ -220,10 +218,8 @@ For production, use certificates from a trusted Certificate Authority:
 ## Performance Features
 
 ### Static Asset Optimisation
-- **Precompression**: Brotli and Gzip compression for maximum bandwidth savings
 - **Cache Busting**: Asset versioning ensures clients always get the latest version
 - **Immutable Caching**: Long-lived cache headers for static assets
-- **Intelligent Fallback**: Automatic selection of best compression format
 
 ### Dynamic Content Optimisation
 - **Buffer Pooling**: Efficient memory management for template rendering
