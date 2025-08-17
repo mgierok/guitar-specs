@@ -43,7 +43,7 @@ func New(cfg Config) *App {
 	// Database connection is mandatory
 	dsn := buildPostgresDSN(cfg)
 	if dsn == "" {
-		logger.Error("database configuration missing; set split DB_* env vars or DATABASE_URL")
+		logger.Error("database configuration missing; set DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME, DB_SSLMODE")
 		panic("database configuration missing")
 	}
 
@@ -161,11 +161,8 @@ func New(cfg Config) *App {
 	}
 }
 
-// buildPostgresDSN assembles a pgx DSN from split parameters if provided; otherwise returns DatabaseURL.
+// buildPostgresDSN assembles a pgx DSN from split parameters if provided; otherwise returns empty string.
 func buildPostgresDSN(cfg Config) string {
-	if cfg.DBHost == "" && cfg.DatabaseURL != "" {
-		return cfg.DatabaseURL
-	}
 	if cfg.DBHost == "" || cfg.DBUser == "" || cfg.DBName == "" {
 		return ""
 	}

@@ -32,9 +32,6 @@ type Config struct {
 	DBName     string // PostgreSQL database name
 	DBSSLMode  string // sslmode (disable, require, verify-ca, verify-full)
 
-	// Backward-compatibility: full connection string, used if split params are empty
-	DatabaseURL string // PostgreSQL connection string (pgx format)
-
 	// Advanced configuration options
 	ReadTimeout       time.Duration // Request read timeout (default: 10s)
 	WriteTimeout      time.Duration // Response write timeout (default: 30s)
@@ -70,9 +67,6 @@ func LoadConfig() Config {
 		DBPassword: getenv("DB_PASSWORD", ""),
 		DBName:     getenv("DB_NAME", ""),
 		DBSSLMode:  getenv("DB_SSLMODE", "disable"),
-
-		// Backward-compatibility: full DSN
-		DatabaseURL: getenv("DATABASE_URL", ""),
 
 		// Advanced configuration options
 		ReadTimeout:       getDuration("READ_TIMEOUT", 10*time.Second),
