@@ -305,7 +305,7 @@ func TestContextLoggerWithFields(t *testing.T) {
 func TestContextWithTimeoutCause(t *testing.T) {
 	t.Run("creates context with timeout and cause", func(t *testing.T) {
 		parent := context.Background()
-		timeout := 100 * time.Millisecond
+		timeout := 50 * time.Millisecond // Shorter timeout
 		cause := fmt.Errorf("test timeout")
 
 		ctx, cancel := ContextWithTimeoutCause(parent, timeout, cause)
@@ -323,14 +323,11 @@ func TestContextWithTimeoutCause(t *testing.T) {
 			t.Errorf("Expected deadline to be approximately %v, got %v", expectedDeadline, deadline)
 		}
 
-		// Wait for timeout
-		time.Sleep(150 * time.Millisecond)
-
-		// Check that context is done
+		// Wait for context to be done with timeout
 		select {
 		case <-ctx.Done():
 			// Context is done as expected
-		default:
+		case <-time.After(100 * time.Millisecond):
 			t.Error("Expected context to be done after timeout")
 		}
 	})
@@ -339,7 +336,7 @@ func TestContextWithTimeoutCause(t *testing.T) {
 func TestContextWithDeadlineCause(t *testing.T) {
 	t.Run("creates context with deadline and cause", func(t *testing.T) {
 		parent := context.Background()
-		deadline := time.Now().Add(100 * time.Millisecond)
+		deadline := time.Now().Add(50 * time.Millisecond) // Shorter deadline
 		cause := fmt.Errorf("test deadline")
 
 		ctx, cancel := ContextWithDeadlineCause(parent, deadline, cause)
@@ -356,14 +353,11 @@ func TestContextWithDeadlineCause(t *testing.T) {
 			t.Errorf("Expected deadline to be %v, got %v", deadline, actualDeadline)
 		}
 
-		// Wait for deadline
-		time.Sleep(150 * time.Millisecond)
-
-		// Check that context is done
+		// Wait for context to be done with timeout
 		select {
 		case <-ctx.Done():
 			// Context is done as expected
-		default:
+		case <-time.After(100 * time.Millisecond):
 			t.Error("Expected context to be done after deadline")
 		}
 	})
