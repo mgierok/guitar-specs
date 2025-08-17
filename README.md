@@ -226,7 +226,6 @@ For production, use certificates from a trusted Certificate Authority:
 - **Intelligent Fallback**: Automatic selection of best compression format
 
 ### Dynamic Content Optimisation
-- **Compression**: Automatic compression for HTML, CSS, JavaScript, and JSON
 - **Buffer Pooling**: Efficient memory management for template rendering
 
 ## Monitoring and Logging

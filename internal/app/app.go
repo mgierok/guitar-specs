@@ -91,19 +91,10 @@ func New(cfg Config) *App {
 		mw.PrecompressedFileServer(sub).ServeHTTP(w, r)
 	})
 
-	// Create middleware-wrapped page handlers with compression
-	// Each route gets its own middleware stack with specific content type compression
-	homeHandler := mw.Compress(5, "text/html")(
-		http.HandlerFunc(pages.Home),
-	)
-
-	aboutHandler := mw.Compress(5, "text/html")(
-		http.HandlerFunc(pages.About),
-	)
-
-	contactHandler := mw.Compress(5, "text/html")(
-		http.HandlerFunc(pages.Contact),
-	)
+	// Create page handlers (no compression)
+	homeHandler := http.HandlerFunc(pages.Home)
+	aboutHandler := http.HandlerFunc(pages.About)
+	contactHandler := http.HandlerFunc(pages.Contact)
 
 	// Register routes with Go 1.22+ pattern matching
 	// This provides automatic 405 Method Not Allowed and Allow headers
