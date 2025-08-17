@@ -1,9 +1,11 @@
 package middleware
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -21,23 +23,22 @@ func Timeout(timeout time.Duration) func(http.Handler) http.Handler {
 			// Update request with new context
 			r = r.WithContext(ctx)
 
-			// Create channel to track request completion
+			// Capture downstream response to avoid writes after timeout
+			crw := newCapturingResponseWriter(w)
 			done := make(chan struct{})
 
-			// Execute request in goroutine
 			go func() {
-				next.ServeHTTP(w, r)
+				next.ServeHTTP(crw, r)
 				close(done)
 			}()
 
-			// Wait for either completion or timeout
+			// Prefer timeout when both happen nearly simultaneously
 			select {
-			case <-done:
-				// Request completed successfully
-				return
 			case <-ctx.Done():
-				// Request timed out
 				http.Error(w, "Request Timeout", http.StatusRequestTimeout)
+				return
+			case <-done:
+				crw.flush()
 				return
 			}
 		})
@@ -56,23 +57,20 @@ func TimeoutWithCause(timeout time.Duration, cause error) func(http.Handler) htt
 			// Update request with new context
 			r = r.WithContext(ctx)
 
-			// Create channel to track request completion
+			crw := newCapturingResponseWriter(w)
 			done := make(chan struct{})
 
-			// Execute request in goroutine
 			go func() {
-				next.ServeHTTP(w, r)
+				next.ServeHTTP(crw, r)
 				close(done)
 			}()
 
-			// Wait for either completion or timeout
 			select {
-			case <-done:
-				// Request completed successfully
-				return
 			case <-ctx.Done():
-				// Request timed out with custom cause
 				http.Error(w, "Request Timeout", http.StatusRequestTimeout)
+				return
+			case <-done:
+				crw.flush()
 				return
 			}
 		})
@@ -91,25 +89,74 @@ func TimeoutWithDeadline(deadline time.Time) func(http.Handler) http.Handler {
 			// Update request with new context
 			r = r.WithContext(ctx)
 
-			// Create channel to track request completion
+			crw := newCapturingResponseWriter(w)
 			done := make(chan struct{})
 
-			// Execute request in goroutine
 			go func() {
-				next.ServeHTTP(w, r)
+				next.ServeHTTP(crw, r)
 				close(done)
 			}()
 
-			// Wait for either completion or timeout
 			select {
-			case <-done:
-				// Request completed successfully
-				return
 			case <-ctx.Done():
-				// Request timed out
 				http.Error(w, "Request Timeout", http.StatusRequestTimeout)
+				return
+			case <-done:
+				crw.flush()
 				return
 			}
 		})
+	}
+}
+
+// capturingResponseWriter buffers downstream writes until we decide to emit.
+type capturingResponseWriter struct {
+	dst         http.ResponseWriter
+	header      http.Header
+	statusCode  int
+	wroteHeader bool
+	buf         bytes.Buffer
+	mu          sync.Mutex
+}
+
+func newCapturingResponseWriter(w http.ResponseWriter) *capturingResponseWriter {
+	return &capturingResponseWriter{
+		dst:    w,
+		header: make(http.Header),
+	}
+}
+
+func (c *capturingResponseWriter) Header() http.Header { return c.header }
+
+func (c *capturingResponseWriter) WriteHeader(code int) {
+	if c.wroteHeader {
+		return
+	}
+	c.wroteHeader = true
+	c.statusCode = code
+}
+
+func (c *capturingResponseWriter) Write(b []byte) (int, error) {
+	if !c.wroteHeader {
+		c.WriteHeader(http.StatusOK)
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.buf.Write(b)
+}
+
+func (c *capturingResponseWriter) flush() {
+	// Copy headers
+	for k, vs := range c.header {
+		for _, v := range vs {
+			c.dst.Header().Add(k, v)
+		}
+	}
+	if c.statusCode == 0 {
+		c.statusCode = http.StatusOK
+	}
+	c.dst.WriteHeader(c.statusCode)
+	if c.buf.Len() > 0 {
+		_, _ = c.dst.Write(c.buf.Bytes())
 	}
 }
