@@ -12,7 +12,11 @@
 	<main class="container">
 		{{block "content" .}}{{end}}
 	</main>
+	{{ if .cspNonce }}
+	<script nonce="{{ .cspNonce }}" src="{{ asset "/static/js/app.js" }}"></script>
+	{{ else }}
 	<script src="{{ asset "/static/js/app.js" }}"></script>
+	{{ end }}
 </body>
 </html>
 {{end}}

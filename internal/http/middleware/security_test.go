@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -22,20 +23,33 @@ func TestSecurityHeaders(t *testing.T) {
 
 	middleware.ServeHTTP(w, req)
 
-	// Check that all required security headers are set
-	headers := map[string]string{
-		"X-Frame-Options":         "DENY",
-		"X-Content-Type-Options":  "nosniff",
-		"X-XSS-Protection":        "1; mode=block",
-		"Referrer-Policy":         "strict-origin-when-cross-origin",
-		"Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
-		"Permissions-Policy":      "geolocation=(), microphone=(), camera=()",
+	// Check static security headers
+	if value := w.Header().Get("X-Frame-Options"); value != "DENY" {
+		t.Errorf("Expected X-Frame-Options to be 'DENY', got '%s'", value)
+	}
+	if value := w.Header().Get("X-Content-Type-Options"); value != "nosniff" {
+		t.Errorf("Expected X-Content-Type-Options to be 'nosniff', got '%s'", value)
+	}
+	if value := w.Header().Get("X-XSS-Protection"); value != "1; mode=block" {
+		t.Errorf("Expected X-XSS-Protection to be '1; mode=block', got '%s'", value)
+	}
+	if value := w.Header().Get("Referrer-Policy"); value != "strict-origin-when-cross-origin" {
+		t.Errorf("Expected Referrer-Policy to be 'strict-origin-when-cross-origin', got '%s'", value)
+	}
+	if value := w.Header().Get("Permissions-Policy"); value != "geolocation=(), microphone=(), camera=()" {
+		t.Errorf("Expected Permissions-Policy to be 'geolocation=(), microphone=(), camera=()', got '%s'", value)
 	}
 
-	for header, expectedValue := range headers {
-		if value := w.Header().Get(header); value != expectedValue {
-			t.Errorf("Expected header %s to be '%s', got '%s'", header, expectedValue, value)
-		}
+	// Check CSP contains nonce and core directives
+	csp := w.Header().Get("Content-Security-Policy")
+	if csp == "" {
+		t.Fatalf("Expected Content-Security-Policy header to be set")
+	}
+	if !strings.Contains(csp, "default-src 'self';") {
+		t.Errorf("CSP missing default-src: %s", csp)
+	}
+	if !strings.Contains(csp, "script-src 'self' 'nonce-") {
+		t.Errorf("CSP missing script-src nonce: %s", csp)
 	}
 
 	// Verify response body is preserved

@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"path/filepath"
 	"sync"
+
+	"guitar-specs/internal/http/middleware"
 )
 
 // Renderer manages HTML template parsing and rendering with performance optimisations.
@@ -68,6 +70,13 @@ func (r *Renderer) HTML(w http.ResponseWriter, req *http.Request, name string, d
 	// This reduces garbage collection pressure during high-traffic periods
 	buf := getBuffer()
 	defer putBuffer(buf)
+
+	// If CSP nonce is present in context, expose it to templates as .cspNonce
+	if nonce, ok := middleware.CSPNonceFromContext(req.Context()); ok {
+		if m, ok2 := data.(map[string]any); ok2 {
+			m["cspNonce"] = nonce
+		}
+	}
 
 	if err := t.ExecuteTemplate(buf, "base", data); err != nil {
 		http.Error(w, "template error", http.StatusInternalServerError)
