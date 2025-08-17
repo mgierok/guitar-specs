@@ -1,0 +1,32 @@
+{{ define "content" }}
+<h1>Guitars</h1>
+
+{{ if not .guitars }}
+  <p>No guitars found.</p>
+{{ else }}
+  <table>
+    <thead>
+      <tr>
+        <th>Brand</th>
+        <th>Model</th>
+        <th>Type</th>
+        <th>Shape</th>
+        <th>Slug</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .guitars }}
+      <tr>
+        <td>{{ .Brand }}</td>
+        <td>{{ .Model }}</td>
+        <td>{{ .Type }}</td>
+        <td>{{ .Shape }}</td>
+        <td>{{ .Slug }}</td>
+      </tr>
+      {{ end }}
+    </tbody>
+  </table>
+{{ end }}
+{{ end }}
+{{template "base" .}}
+

@@ -16,6 +16,7 @@ import (
 
 	h "guitar-specs/internal/http/handlers"
 	mw "guitar-specs/internal/http/middleware"
+	"guitar-specs/internal/models"
 	"guitar-specs/internal/render"
 	"guitar-specs/web"
 )
@@ -105,8 +106,9 @@ func New(cfg Config) *App {
 	// Templates can now use {{ asset "/static/css/main.css" }} for cache-busted URLs
 	ren := render.NewWithFuncs(web.TemplatesFS, template.FuncMap{"asset": assetFunc})
 
-	// Create page handlers
-	pages := h.New(ren, web.RobotsFS)
+	// Create model store and page handlers
+	store := models.NewStore(pool)
+	pages := h.New(ren, web.RobotsFS, store)
 
 	// Static file serving with aggressive caching
 	// These files are served with long-lived cache headers
@@ -128,6 +130,7 @@ func New(cfg Config) *App {
 	mux.Handle("GET /about", aboutHandler)
 	mux.Handle("GET /contact", contactHandler)
 	mux.Handle("GET /robots.txt", http.HandlerFunc(pages.RobotsTxt))
+	mux.Handle("GET /guitars", http.HandlerFunc(pages.Guitars))
 	mux.Handle("GET /healthz", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
