@@ -137,9 +137,9 @@ CREATE TABLE public.brands (
 
 CREATE TABLE public.feature_allowed_values (
     id bigint NOT NULL,
-    feature_id bigint NOT NULL,
     value text NOT NULL,
-    label text NOT NULL
+    label text NOT NULL,
+    feature_id uuid NOT NULL
 );
 
 
@@ -167,32 +167,13 @@ ALTER SEQUENCE public.feature_allowed_values_id_seq OWNED BY public.feature_allo
 --
 
 CREATE TABLE public.features (
-    id bigint NOT NULL,
     key text NOT NULL,
     label text NOT NULL,
     kind public.feature_kind NOT NULL,
     unit text,
-    description text
+    description text,
+    id uuid DEFAULT gen_random_uuid() NOT NULL
 );
-
-
---
--- Name: features_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.features_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: features_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.features_id_seq OWNED BY public.features.id;
 
 
 --
@@ -201,11 +182,11 @@ ALTER SEQUENCE public.features_id_seq OWNED BY public.features.id;
 
 CREATE TABLE public.guitar_features (
     guitar_id uuid NOT NULL,
-    feature_id bigint NOT NULL,
     allowed_value_id bigint,
     value_text text,
     value_number numeric,
-    value_boolean boolean
+    value_boolean boolean,
+    feature_id uuid NOT NULL
 );
 
 
@@ -264,26 +245,11 @@ ALTER TABLE ONLY public.feature_allowed_values ALTER COLUMN id SET DEFAULT nextv
 
 
 --
--- Name: features id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.features ALTER COLUMN id SET DEFAULT nextval('public.features_id_seq'::regclass);
-
-
---
 -- Name: brands brands_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.brands
     ADD CONSTRAINT brands_pkey PRIMARY KEY (slug);
-
-
---
--- Name: feature_allowed_values feature_allowed_values_feature_id_value_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.feature_allowed_values
-    ADD CONSTRAINT feature_allowed_values_feature_id_value_key UNIQUE (feature_id, value);
 
 
 --
@@ -308,14 +274,6 @@ ALTER TABLE ONLY public.features
 
 ALTER TABLE ONLY public.features
     ADD CONSTRAINT features_pkey PRIMARY KEY (id);
-
-
---
--- Name: guitar_features guitar_features_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.guitar_features
-    ADD CONSTRAINT guitar_features_pkey PRIMARY KEY (guitar_id, feature_id);
 
 
 --
