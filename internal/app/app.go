@@ -104,7 +104,7 @@ func New(cfg Config) *App {
 
 	// Create renderer with asset versioning helper function
 	// Templates can now use {{ asset "/static/css/main.css" }} for cache-busted URLs
-	ren := render.NewWithFuncs(web.TemplatesFS, template.FuncMap{"asset": assetFunc})
+	ren := render.New(web.TemplatesFS, template.FuncMap{"asset": assetFunc}, cfg.Env)
 
 	// Create model store and page handlers
 	store := models.NewStore(pool)
