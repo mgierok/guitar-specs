@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -64,47 +63,43 @@ func New(cfg Config) *App {
 	// Initialize standard Go 1.22 router with pattern matching
 	mux := http.NewServeMux()
 
-	// Compute per-file hashes for static assets to enable cache busting
-	// This ensures clients always receive the latest version when assets change
-	// Application requires all assets to be processed successfully for stability
-	sub, _ := fs.Sub(web.StaticFS, "static")
-	versions, err := BuildAssetVersions(sub)
+	// Initialize asset manager for SRI and cache busting from build-time manifest
+	// Application cannot start without manifest - fail fast
+	assetManager, err := NewAssetManager(web.StaticFS)
 	if err != nil {
-		logger.Warn("failed to build asset versions, retrying once", "err", err)
-		// Retry once after a short delay
-		time.Sleep(100 * time.Millisecond)
-		if versions, err = BuildAssetVersions(sub); err != nil {
-			logger.Error("failed to build asset versions after retry, application cannot start", "err", err)
-			// Panic to prevent application from running with incomplete assets
-			panic(fmt.Sprintf("asset versioning failed: %v", err))
-		} else {
-			logger.Info("asset versions built successfully after retry")
-		}
+		logger.Error("failed to initialize asset manager - manifest required", "err", err)
+		panic(fmt.Sprintf("asset manager initialization failed: %v", err))
+	}
+
+	// Log SRI status
+	if cfg.Env == "production" {
+		logger.Info("asset manager initialized successfully", "sri_enabled", true)
 	} else {
-		logger.Info("asset versions built successfully", "count", len(versions))
-		// Log information about large files that were skipped
-		if len(versions) > 0 {
-			logger.Debug("asset versioning completed", "processed_files", len(versions), "max_file_size", "10MB")
-		}
+		logger.Info("asset manager initialized successfully", "sri_enabled", true)
 	}
 
-	// Helper function for templates to append version hash to asset URLs
+	// Prepare static file system for serving
+	sub, _ := fs.Sub(web.StaticFS, "static")
+
+	// Helper function for templates to get hashed asset URLs with SRI
 	// This enables aggressive caching while ensuring cache invalidation on updates
-	// The function is thread-safe as it only reads from the versions map
+	// The function is thread-safe as it only reads from the manifest
 	assetFunc := func(p string) string {
-		if !strings.HasPrefix(p, "/") {
-			p = "/" + p
-		}
-		// Read-only access to versions map is safe for concurrent use
-		if v, ok := versions[p]; ok {
-			return p + "?v=" + v
-		}
-		return p
+		return assetManager.AssetURL(p)
 	}
 
-	// Create renderer with asset versioning helper function
+	// Helper function for templates to get SRI hash for assets
+	sriFunc := func(p string) string {
+		return assetManager.AssetSRI(p)
+	}
+
+	// Create renderer with asset versioning and SRI helper functions
 	// Templates can now use {{ asset "/static/css/main.css" }} for cache-busted URLs
-	ren := render.New(web.TemplatesFS, template.FuncMap{"asset": assetFunc}, cfg.Env)
+	// and {{ sri "/static/js/main.js" }} for SRI hashes
+	ren := render.New(web.TemplatesFS, template.FuncMap{
+		"asset": assetFunc,
+		"sri":   sriFunc,
+	}, cfg.Env)
 
 	// Create model store and page handlers
 	store := models.NewStore(pool)

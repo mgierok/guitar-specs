@@ -3,8 +3,10 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "dev": "esbuild web/static/src/main.js --bundle --watch --outdir=web/static/dist/js --format=esm",
-    "build": "esbuild web/static/src/main.js --bundle --minify --outdir=web/static/dist/js --format=esm && npm run build:css",
+    "dev": "npm run dev:js & npm run watch:css",
+    "dev:js": "esbuild web/static/src/main.js --bundle --watch --outdir=web/static/dist/js --format=esm",
+    "build": "npm run build:css && npm run build:js",
+    "build:js": "node web/static/build.js",
     "build:css": "tailwindcss -i web/static/src/style.css -o web/static/dist/css/style.css --minify",
     "watch:css": "tailwindcss -i web/static/src/style.css -o web/static/dist/css/style.css --watch"
   },
