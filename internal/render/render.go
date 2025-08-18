@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"guitar-specs/internal/http/middleware"
@@ -58,7 +59,9 @@ func NewWithFuncs(tfs embed.FS, funcs template.FuncMap) *Renderer {
 		// The page template will be executed within the layout context
 		t = template.Must(t.ParseFS(tfs, page))
 
+		// Store template with both the filename and "content" as keys for flexibility
 		byFile[name] = t
+		byFile[strings.TrimSuffix(name, ".tmpl.html")] = t
 	}
 
 	return &Renderer{byFile: byFile}
@@ -85,8 +88,15 @@ func (r *Renderer) HTML(w http.ResponseWriter, req *http.Request, name string, d
 		}
 	}
 
+	// Execute the template - it should contain both "base" and "content" blocks
 	if err := t.ExecuteTemplate(buf, "base", data); err != nil {
-		http.Error(w, "template error", http.StatusInternalServerError)
+		// Log detailed template error for debugging
+		fmt.Printf("Template execution error for %s: %v\n", name, err)
+		fmt.Printf("Available templates: %v\n", t.DefinedTemplates())
+		fmt.Printf("Template name: %s\n", name)
+		
+		// Return detailed error to help with debugging
+		http.Error(w, fmt.Sprintf("template error: %v", err), http.StatusInternalServerError)
 		return
 	}
 

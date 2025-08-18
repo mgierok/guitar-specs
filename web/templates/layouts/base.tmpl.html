@@ -1,21 +1,21 @@
 {{define "base"}}
 <!doctype html>
-<html lang="en">
+<html lang="en" class="h-full">
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>{{.title}}</title>
-	<link rel="stylesheet" href="{{ asset "/static/css/main.css" }}">
+	<link rel="stylesheet" href="{{ asset "/static/dist/css/style.css" }}">
 </head>
-<body>
+<body class="h-full">
 	{{template "navbar" .}}
-	<main class="container">
+	<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 		{{block "content" .}}{{end}}
 	</main>
 	{{ if .cspNonce }}
-	<script nonce="{{ .cspNonce }}" src="{{ asset "/static/js/app.js" }}"></script>
+	<script nonce="{{ .cspNonce }}" src="{{ asset "/static/dist/js/main.js" }}"></script>
 	{{ else }}
-	<script src="{{ asset "/static/js/app.js" }}"></script>
+	<script src="{{ asset "/static/dist/js/main.js" }}"></script>
 	{{ end }}
 </body>
 </html>

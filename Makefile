@@ -1,3 +1,22 @@
+# Frontend Build
+frontend-install:
+	@echo "→ Installing frontend dependencies..."
+	@npm install
+	@echo "✓ Frontend dependencies installed"
+
+frontend-dev:
+	@echo "→ Starting frontend development (esbuild + Tailwind watch)..."
+	@npm run dev & npm run watch:css
+
+frontend-build:
+	@echo "→ Building frontend assets..."
+	@if command -v npm >/dev/null 2>&1 && [ -f package.json ]; then \
+		npm run build; \
+	else \
+		./build-frontend.sh; \
+	fi
+	@echo "✓ Frontend assets built"
+
 # SSL Certificate Management
 ssl-gen:
 	@echo "→ Generating self-signed SSL certificates for local development..."
@@ -13,7 +32,7 @@ ssl-clean:
 run:
 	go run ./cmd/web
 
-build:
+build: frontend-build
 	CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o bin/web ./cmd/web
 
 test:
@@ -37,12 +56,15 @@ clean: ssl-clean env-clean
 # Help
 help:
 	@echo "Available commands:"
-	@echo "  run          - Start HTTPS application (requires SSL certificates)"
-	@echo "  build        - Build application binary"
-	@echo "  test         - Run tests"
-	@echo "  env-check    - Check .env configuration"
-	@echo "  ssl-gen      - Generate self-signed SSL certificates"
-	@echo "  ssl-clean    - Remove SSL certificates"
-	@echo "  env-clean    - Remove .env files"
-	@echo "  clean        - Clean all development files"
-	@echo "  help         - Show this help message"
+	@echo "  frontend-install - Install frontend dependencies (npm install)"
+	@echo "  frontend-dev     - Start frontend development server"
+	@echo "  frontend-build   - Build frontend assets for production"
+	@echo "  run              - Start HTTPS application (requires SSL certificates)"
+	@echo "  build            - Build application binary and frontend assets"
+	@echo "  test             - Run tests"
+	@echo "  env-check        - Check .env configuration"
+	@echo "  ssl-gen          - Generate self-signed SSL certificates"
+	@echo "  ssl-clean        - Remove SSL certificates"
+	@echo "  env-clean        - Remove .env files"
+	@echo "  clean            - Clean all development files"
+	@echo "  help             - Show this help message"

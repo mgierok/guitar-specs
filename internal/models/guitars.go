@@ -18,6 +18,7 @@ type Guitar struct {
 	BrandName string
 	ShapeSlug string
 	ShapeName string
+	Features  []GuitarFeatureResolved // Features for this guitar
 }
 
 // GuitarStore provides read operations over guitars.

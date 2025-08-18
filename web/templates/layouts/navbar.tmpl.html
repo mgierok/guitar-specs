@@ -1,7 +1,29 @@
 {{define "navbar"}}
-<nav class="navbar">
-	<a href="/">Home</a>
-	<a href="/about">About us</a>
-	<a href="/contact">Contact</a>
+<nav class="bg-white shadow-sm border-b border-gray-200">
+	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+		<div class="flex justify-between h-16">
+			<div class="flex">
+				<div class="flex-shrink-0 flex items-center">
+					<a href="/" class="text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors duration-200">
+						Guitar Specs
+					</a>
+				</div>
+				<div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+					<a href="/" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+						Home
+					</a>
+					<a href="/guitars" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+						Guitars
+					</a>
+					<a href="/about" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+						About
+					</a>
+					<a href="/contact" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+						Contact
+					</a>
+				</div>
+			</div>
+		</div>
+	</div>
 </nav>
 {{end}}

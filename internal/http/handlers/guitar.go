@@ -26,9 +26,11 @@ func (p *Pages) GuitarDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Attach features to the guitar
+	g.Features = feats
+
 	p.render.HTML(w, r, "guitar.tmpl.html", map[string]any{
-		"title":    g.BrandName + " " + g.Model,
-		"guitar":   g,
-		"features": feats,
+		"title":  g.BrandName + " " + g.Model,
+		"guitar": g,
 	})
 }
