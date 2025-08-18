@@ -3,6 +3,22 @@ frontend-install:
 	@echo "→ Installing frontend dependencies..."
 	@npm install
 	@echo "✓ Frontend dependencies installed"
+	@echo "→ Updating Browserslist database..."
+	@if command -v npm >/dev/null 2>&1; then \
+		npx update-browserslist-db@latest; \
+		echo "✓ Browserslist database updated"; \
+	else \
+		echo "⚠️  npm not found, cannot update Browserslist"; \
+	fi
+
+frontend-update-browserslist:
+	@echo "→ Updating Browserslist database..."
+	@if command -v npm >/dev/null 2>&1; then \
+		npx update-browserslist-db@latest; \
+		echo "✓ Browserslist database updated"; \
+	else \
+		echo "⚠️  npm not found, cannot update Browserslist"; \
+	fi
 
 frontend-dev:
 	@echo "→ Starting frontend development (esbuild + Tailwind watch)..."
@@ -53,10 +69,15 @@ env-clean:
 clean: ssl-clean env-clean
 	@echo "→ All development files cleaned"
 
+# Maintenance
+maintenance: frontend-update-browserslist
+	@echo "→ Frontend maintenance completed"
+
 # Help
 help:
 	@echo "Available commands:"
 	@echo "  frontend-install - Install frontend dependencies (npm install)"
+	@echo "  frontend-update-browserslist - Update Browserslist database"
 	@echo "  frontend-dev     - Start frontend development server"
 	@echo "  frontend-build   - Build frontend assets for production"
 	@echo "  run              - Start HTTPS application (requires SSL certificates)"
@@ -67,4 +88,5 @@ help:
 	@echo "  ssl-clean        - Remove SSL certificates"
 	@echo "  env-clean        - Remove .env files"
 	@echo "  clean            - Clean all development files"
+	@echo "  maintenance      - Update frontend dependencies (Browserslist)"
 	@echo "  help             - Show this help message"
