@@ -12,11 +12,11 @@
 	<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 		{{block "content" .}}{{end}}
 	</main>
-	{{ if .cspNonce }}
-	<script nonce="{{ .cspNonce }}" src="{{ asset "/static/dist/js/main.js" }}"></script>
-	{{ else }}
-	<script src="{{ asset "/static/dist/js/main.js" }}"></script>
-	{{ end }}
+	            	{{ if .cspNonce }}
+            	<script nonce="{{ .cspNonce }}" type="module" src="{{ asset "/static/dist/js/main.js" }}"></script>
+            	{{ else }}
+            	<script type="module" src="{{ asset "/static/dist/js/main.js" }}"></script>
+            	{{ end }}
 </body>
 </html>
 {{end}}

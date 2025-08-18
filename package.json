@@ -3,8 +3,8 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "dev": "esbuild web/static/src/main.js --bundle --watch --outdir=web/static/dist/js --format=iife --global-name=guitarSpecs",
-    "build": "esbuild web/static/src/main.js --bundle --minify --outdir=web/static/dist/js --format=iife --global-name=guitarSpecs && npm run build:css",
+    "dev": "esbuild web/static/src/main.js --bundle --watch --outdir=web/static/dist/js --format=esm",
+    "build": "esbuild web/static/src/main.js --bundle --minify --outdir=web/static/dist/js --format=esm && npm run build:css",
     "build:css": "tailwindcss -i web/static/src/style.css -o web/static/dist/css/style.css --minify",
     "watch:css": "tailwindcss -i web/static/src/style.css -o web/static/dist/css/style.css --watch"
   },

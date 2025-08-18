@@ -18,8 +18,7 @@ if command -v esbuild >/dev/null 2>&1; then
         --bundle \
         --minify \
         --outdir=web/static/dist/js \
-        --format=iife \
-        --global-name=guitarSpecs
+        --format=esm
 else
     echo "⚠️  esbuild not found, copying source JavaScript..."
     cp web/static/src/main.js web/static/dist/js/main.js
