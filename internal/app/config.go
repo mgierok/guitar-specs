@@ -99,7 +99,7 @@ func getenv(k, def string) string {
 }
 
 // ValidateHTTPS ensures HTTPS configuration is valid.
-// This function checks that certificate and key files exist and are readable.
+// This function checks that certificate and key files exist, are readable, and are in PEM format.
 func (c Config) ValidateHTTPS() error {
 	if c.CertFile == "" {
 		return fmt.Errorf("SSL_CERT_FILE not specified")
@@ -124,7 +124,7 @@ func (c Config) ValidateHTTPS() error {
 		return fmt.Errorf("SSL certificate validation failed: %w", err)
 	}
 
-	// Validate certificate-key compatibility
+	// Validate certificate-key compatibility (PEM format only)
 	if err := c.validateCertificateKeyPair(); err != nil {
 		return fmt.Errorf("SSL certificate-key pair validation failed: %w", err)
 	}
@@ -134,6 +134,7 @@ func (c Config) ValidateHTTPS() error {
 
 // validateCertificate checks certificate format and expiry
 // This prevents runtime errors from malformed or expired certificates
+// Only PEM format is supported
 func (c Config) validateCertificate() error {
 	// Read and parse the certificate file
 	certData, err := os.ReadFile(c.CertFile)
@@ -141,25 +142,19 @@ func (c Config) validateCertificate() error {
 		return fmt.Errorf("failed to read certificate file: %w", err)
 	}
 
-	// Parse the certificate - handle both PEM and DER formats
-	var cert *x509.Certificate
+	// Parse the certificate - PEM format only
+	block, _ := pem.Decode(certData)
+	if block == nil {
+		return fmt.Errorf("certificate file is not in PEM format")
+	}
 
-	// Try to parse as PEM first (most common for self-signed certificates)
-	if block, _ := pem.Decode(certData); block != nil {
-		// PEM format detected
-		if block.Type != "CERTIFICATE" {
-			return fmt.Errorf("PEM block is not a certificate (type: %s)", block.Type)
-		}
-		cert, err = x509.ParseCertificate(block.Bytes)
-		if err != nil {
-			return fmt.Errorf("failed to parse PEM certificate: %w", err)
-		}
-	} else {
-		// Try to parse as raw DER (binary format)
-		cert, err = x509.ParseCertificate(certData)
-		if err != nil {
-			return fmt.Errorf("failed to parse certificate (tried PEM and DER): %w", err)
-		}
+	if block.Type != "CERTIFICATE" {
+		return fmt.Errorf("PEM block is not a certificate (type: %s)", block.Type)
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return fmt.Errorf("failed to parse PEM certificate: %w", err)
 	}
 
 	// Check if certificate is expired
@@ -184,6 +179,7 @@ func (c Config) validateCertificate() error {
 
 // validateCertificateKeyPair checks if certificate and private key are compatible
 // This ensures the application can actually use the certificate-key pair
+// Only PEM format is supported
 func (c Config) validateCertificateKeyPair() error {
 	// Read certificate and private key
 	certData, err := os.ReadFile(c.CertFile)
@@ -196,61 +192,45 @@ func (c Config) validateCertificateKeyPair() error {
 		return fmt.Errorf("failed to read private key file: %w", err)
 	}
 
-	// Parse the certificate - handle both PEM and DER formats
-	var cert *x509.Certificate
-	if block, _ := pem.Decode(certData); block != nil {
-		// PEM format detected
-		if block.Type != "CERTIFICATE" {
-			return fmt.Errorf("PEM block is not a certificate (type: %s)", block.Type)
-		}
-		cert, err = x509.ParseCertificate(block.Bytes)
-		if err != nil {
-			return fmt.Errorf("failed to parse PEM certificate: %w", err)
-		}
-	} else {
-		// Try to parse as raw DER (binary format)
-		cert, err = x509.ParseCertificate(certData)
-		if err != nil {
-			return fmt.Errorf("failed to parse certificate (tried PEM and DER): %w", err)
-		}
+	// Parse the certificate - PEM format only
+	certBlock, _ := pem.Decode(certData)
+	if certBlock == nil {
+		return fmt.Errorf("certificate file is not in PEM format")
 	}
 
-	// Parse the private key - handle both PEM and DER formats
-	var privateKey interface{}
+	if certBlock.Type != "CERTIFICATE" {
+		return fmt.Errorf("PEM block is not a certificate (type: %s)", certBlock.Type)
+	}
 
-	// Try to parse as PEM first
-	if block, _ := pem.Decode(keyData); block != nil {
-		// PEM format detected
-		switch block.Type {
-		case "RSA PRIVATE KEY":
-			// PKCS1 format
-			key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
-			if err != nil {
-				return fmt.Errorf("failed to parse PEM RSA private key: %w", err)
-			}
-			privateKey = key
-		case "PRIVATE KEY":
-			// PKCS8 format
-			key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
-			if err != nil {
-				return fmt.Errorf("failed to parse PEM PKCS8 private key: %w", err)
-			}
-			privateKey = key
-		default:
-			return fmt.Errorf("unsupported PEM block type for private key: %s", block.Type)
-		}
-	} else {
-		// Try to parse as raw DER - try PKCS1 first, then PKCS8
-		key, err := x509.ParsePKCS1PrivateKey(keyData)
+	cert, err := x509.ParseCertificate(certBlock.Bytes)
+	if err != nil {
+		return fmt.Errorf("failed to parse PEM certificate: %w", err)
+	}
+
+	// Parse the private key - PEM format only
+	keyBlock, _ := pem.Decode(keyData)
+	if keyBlock == nil {
+		return fmt.Errorf("private key file is not in PEM format")
+	}
+
+	var privateKey interface{}
+	switch keyBlock.Type {
+	case "RSA PRIVATE KEY":
+		// PKCS1 format
+		key, err := x509.ParsePKCS1PrivateKey(keyBlock.Bytes)
 		if err != nil {
-			// Try PKCS8 format
-			privateKey, err = x509.ParsePKCS8PrivateKey(keyData)
-			if err != nil {
-				return fmt.Errorf("failed to parse private key (tried PEM and DER): %w", err)
-			}
-		} else {
-			privateKey = key
+			return fmt.Errorf("failed to parse PEM RSA private key: %w", err)
 		}
+		privateKey = key
+	case "PRIVATE KEY":
+		// PKCS8 format
+		key, err := x509.ParsePKCS8PrivateKey(keyBlock.Bytes)
+		if err != nil {
+			return fmt.Errorf("failed to parse PEM PKCS8 private key: %w", err)
+		}
+		privateKey = key
+	default:
+		return fmt.Errorf("unsupported PEM block type for private key: %s", keyBlock.Type)
 	}
 
 	// Check if it's an RSA key
