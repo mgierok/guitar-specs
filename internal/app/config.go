@@ -46,10 +46,10 @@ type Config struct {
 // LoadConfig loads configuration from environment variables with sensible defaults.
 // This function ensures the application has valid configuration even when
 // environment variables are not explicitly set.
-// It automatically loads .env files before reading environment variables.
+// It automatically loads .env file before reading environment variables.
 func LoadConfig() Config {
-	// Load .env files first to populate environment variables
-	LoadEnvFiles()
+	// Load .env file first to populate environment variables
+	LoadEnvFile()
 
 	cfg := Config{
 		Host: getenv("HOST", "0.0.0.0"),    // Bind to all network interfaces

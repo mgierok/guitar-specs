@@ -11,7 +11,6 @@ func TestLoadEnvFile(t *testing.T) {
 HOST=127.0.0.1
 PORT=9000
 ENV=test
-ENABLE_HTTPS=true
 SSL_CERT_FILE=/test/cert.crt
 SSL_KEY_FILE=/test/key.key
 
@@ -35,13 +34,12 @@ QUOTED_VALUE="quoted string"
 	os.Unsetenv("HOST")
 	os.Unsetenv("PORT")
 	os.Unsetenv("ENV")
-	os.Unsetenv("ENABLE_HTTPS")
 	os.Unsetenv("SSL_CERT_FILE")
 	os.Unsetenv("SSL_KEY_FILE")
 	os.Unsetenv("QUOTED_VALUE")
 
 	// Load the test .env file
-	err = loadEnvFile(".env.test", false)
+	err = loadEnvFile(".env.test")
 	if err != nil {
 		t.Fatalf("Failed to load .env file: %v", err)
 	}
@@ -51,7 +49,6 @@ QUOTED_VALUE="quoted string"
 		"HOST":          "127.0.0.1",
 		"PORT":          "9000",
 		"ENV":           "test",
-		"ENABLE_HTTPS":  "true",
 		"SSL_CERT_FILE": "/test/cert.crt",
 		"SSL_KEY_FILE":  "/test/key.key",
 		"QUOTED_VALUE":  "quoted string",
@@ -72,73 +69,46 @@ QUOTED_VALUE="quoted string"
 
 func TestLoadEnvFileNonExistent(t *testing.T) {
 	// Try to load a non-existent file
-	err := loadEnvFile(".env.nonexistent", false)
+	err := loadEnvFile(".env.nonexistent")
 	if err == nil {
 		t.Error("Expected error when loading non-existent file")
 	}
 }
 
-func TestLoadEnvFilesPriority(t *testing.T) {
-	// Create test .env files with different priorities
-	envDefault := `HOST=0.0.0.0
-PORT=8080
-ENV=development
-`
-
-	envDev := `HOST=0.0.0.0
-PORT=8443
-ENV=development
-ENABLE_HTTPS=true
-`
-
-	envLocal := `HOST=127.0.0.1
+func TestLoadEnvFileSimple(t *testing.T) {
+	// Create a simple .env file for testing
+	envContent := `HOST=127.0.0.1
 PORT=9000
-ENV=local
+ENV=test
 `
 
-	// Write test files
-	os.WriteFile(".env", []byte(envDefault), 0644)
-	os.WriteFile(".env.development", []byte(envDev), 0644)
-	os.WriteFile(".env.local", []byte(envLocal), 0644)
-
-	defer func() {
-		os.Remove(".env")
-		os.Remove(".env.development")
-		os.Remove(".env.local")
-	}()
+	// Write test file
+	os.WriteFile(".env", []byte(envContent), 0644)
+	defer os.Remove(".env")
 
 	// Clear environment completely
 	os.Unsetenv("HOST")
 	os.Unsetenv("PORT")
 	os.Unsetenv("ENV")
-	os.Unsetenv("ENABLE_HTTPS")
 
-	// Don't set ENV in environment - let .env files set it
+	// Load .env file
+	LoadEnvFile()
 
-	// Load .env files
-	LoadEnvFiles()
-
-	// With the new policy, .env.local does NOT override values set by .env/.env.[ENV]
-	if host := os.Getenv("HOST"); host != "0.0.0.0" {
-		t.Errorf("Expected HOST from .env (0.0.0.0), got '%s'", host)
+	// Check that environment variables were set correctly
+	if host := os.Getenv("HOST"); host != "127.0.0.1" {
+		t.Errorf("Expected HOST from .env (127.0.0.1), got '%s'", host)
 	}
 
-	if port := os.Getenv("PORT"); port != "8080" {
-		t.Errorf("Expected PORT from .env (8080), got '%s'", port)
+	if port := os.Getenv("PORT"); port != "9000" {
+		t.Errorf("Expected PORT from .env (9000), got '%s'", port)
 	}
 
-	if env := os.Getenv("ENV"); env != "development" {
-		t.Errorf("Expected ENV from .env (development), got '%s'", env)
-	}
-
-	// Check that ENABLE_HTTPS was loaded from .env.development
-	// (since ENV=development from .env, it loads .env.development)
-	if https := os.Getenv("ENABLE_HTTPS"); https != "true" {
-		t.Errorf("Expected ENABLE_HTTPS from .env.development (true), got '%s'", https)
+	if env := os.Getenv("ENV"); env != "test" {
+		t.Errorf("Expected ENV from .env (test), got '%s'", env)
 	}
 }
 
-func TestLoadEnvFileExistingEnvVar(t *testing.T) {
+func TestLoadEnvFileOverwritesExisting(t *testing.T) {
 	// Set an environment variable first
 	os.Setenv("EXISTING_VAR", "existing_value")
 
@@ -151,11 +121,11 @@ NEW_VAR=new_value
 	defer os.Remove(".env.test")
 
 	// Load .env file
-	loadEnvFile(".env.test", false)
+	loadEnvFile(".env.test")
 
-	// Existing variable should not be overwritten
-	if value := os.Getenv("EXISTING_VAR"); value != "existing_value" {
-		t.Errorf("Existing environment variable should not be overwritten, got '%s'", value)
+	// Existing variable should be overwritten (new behavior)
+	if value := os.Getenv("EXISTING_VAR"); value != "new_value" {
+		t.Errorf("Existing environment variable should be overwritten, got '%s'", value)
 	}
 
 	// New variable should be set
