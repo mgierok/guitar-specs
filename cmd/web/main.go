@@ -46,17 +46,28 @@ func main() {
 	}
 
 	// Start HTTPS server
+	serverErr := make(chan error, 1)
 	go func() {
 		log.Printf("HTTPS server starting on %s", cfg.Addr())
 		if err := srv.ListenAndServeTLS(cfg.CertFile, cfg.KeyFile); !errors.Is(err, http.ErrServerClosed) {
-			log.Printf("HTTPS server error: %v", err)
+			// Propagate non-shutdown errors to the main goroutine so we can fail fast
+			serverErr <- err
 		}
 	}()
 
 	// Wait for interrupt signal to gracefully shutdown the server
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
-	<-quit
+
+	// Either the server failed (startup/runtime) or we received a shutdown signal
+	select {
+	case err := <-serverErr:
+		if err != nil { // Fail fast on unexpected server errors
+			log.Fatalf("HTTPS server error: %v", err)
+		}
+	case <-quit:
+		// proceed to graceful shutdown below
+	}
 
 	log.Println("shutting down HTTPS server...")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
