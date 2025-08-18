@@ -1,17 +1,106 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 
-/* Classic Black & Red Color Scheme */
-:root {
-  --bg: #F8F9FA;
-  --surface: #FFFFFF;
-  --text: #1C1C1C;
-  --muted: #6B7280;
-  --primary: #0D0D0D;
-  --secondary: #E63946;
-  --accent: #FFD166;
-  --ring: #111827;
+@theme {
+  --font-sans:
+    system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell,
+    Helvetica Neue, Arial, Noto Sans, sans-serif;
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility btn {
+  @apply px-4 py-2 rounded-md font-medium transition-colors duration-200;
+}
+
+@utility btn-primary {
+  background-color: var(--primary);
+  color: var(--surface);
+
+  &:hover {
+    background-color: var(--ring);
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--surface),
+      0 0 0 4px var(--ring);
+  }
+}
+
+@utility btn-secondary {
+  background-color: var(--secondary);
+  color: var(--surface);
+
+  &:hover {
+    background-color: #d32f3d;
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--surface),
+      0 0 0 4px var(--ring);
+  }
+}
+
+@utility card {
+  background-color: var(--surface);
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  box-shadow:
+    0 1px 3px 0 rgba(0, 0, 0, 0.1),
+    0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+@utility table {
+  @apply min-w-full divide-y;
+  border-color: #e5e7eb;
+
+  & th {
+    @apply px-6 py-3 text-left text-xs font-medium uppercase tracking-wider;
+    color: var(--muted);
+  }
+
+  & td {
+    @apply px-6 py-4 whitespace-nowrap text-sm;
+    color: var(--text);
+  }
+
+  & tbody tr:hover {
+    background-color: #f9fafb;
+  }
+}
+
+@layer utilities {
+  /* Classic Black & Red Color Scheme */
+  :root {
+    --bg: #f8f9fa;
+    --surface: #ffffff;
+    --text: #1c1c1c;
+    --muted: #6b7280;
+    --primary: #0d0d0d;
+    --secondary: #e63946;
+    --accent: #ffd166;
+    --ring: #111827;
+  }
 }
 
 @layer base {
@@ -19,67 +108,6 @@
     @apply font-sans;
     background-color: var(--bg);
     color: var(--text);
-  }
-}
-
-@layer components {
-  .btn {
-    @apply px-4 py-2 rounded-md font-medium transition-colors duration-200;
-  }
-  
-  .btn-primary {
-    background-color: var(--primary);
-    color: var(--surface);
-  }
-  
-  .btn-primary:hover {
-    background-color: var(--ring);
-  }
-  
-  .btn-primary:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ring);
-  }
-  
-  .btn-secondary {
-    background-color: var(--secondary);
-    color: var(--surface);
-  }
-  
-  .btn-secondary:hover {
-    background-color: #d32f3d;
-  }
-  
-  .btn-secondary:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ring);
-  }
-  
-  .card {
-    background-color: var(--surface);
-    border: 1px solid #e5e7eb;
-    border-radius: 0.5rem;
-    padding: 1.5rem;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  }
-  
-  .table {
-    @apply min-w-full divide-y;
-    border-color: #e5e7eb;
-  }
-  
-  .table th {
-    @apply px-6 py-3 text-left text-xs font-medium uppercase tracking-wider;
-    color: var(--muted);
-  }
-  
-  .table td {
-    @apply px-6 py-4 whitespace-nowrap text-sm;
-    color: var(--text);
-  }
-  
-  .table tbody tr:hover {
-    background-color: #f9fafb;
   }
 }
 

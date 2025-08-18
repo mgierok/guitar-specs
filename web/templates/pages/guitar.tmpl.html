@@ -7,7 +7,7 @@
         <li>
           <div>
             <a href="/guitars" class="text-gray-400 hover:text-gray-500">
-              <svg class="h-5 w-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <svg class="h-5 w-5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M7.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l2.293 2.293a1 1 0 010 1.414z" clip-rule="evenodd" />
               </svg>
               <span class="sr-only">Back to guitars</span>
@@ -16,7 +16,7 @@
         </li>
         <li>
           <div class="flex items-center">
-            <svg class="h-5 w-5 flex-shrink-0 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+            <svg class="h-5 w-5 shrink-0 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
               <path d="M5.555 4.084a1 1 0 00-1.414 1.414l6.3 6.3-6.3 6.3a1 1 0 001.414 1.414l7-7a1 1 0 000-1.414l-7-7z" />
             </svg>
             <a href="/guitars" class="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700">Guitars</a>
@@ -24,7 +24,7 @@
         </li>
         <li>
           <div class="flex items-center">
-            <svg class="h-5 w-5 flex-shrink-0 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+            <svg class="h-5 w-5 shrink-0 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
               <path d="M5.555 4.084a1 1 0 00-1.414 1.414l6.3 6.3-6.3 6.3a1 1 0 001.414 1.414l7-7a1 1 0 000-1.414l-7-7z" />
             </svg>
             <span class="ml-4 text-sm font-medium text-gray-500">{{ .guitar.BrandName }} {{ .guitar.Model }}</span>
@@ -69,7 +69,7 @@
           </div>
           <div class="sm:col-span-2">
             <dt class="text-sm font-medium text-gray-500">Slug</dt>
-            <dd class="mt-1 text-sm text-gray-900 font-mono bg-gray-100 px-2 py-1 rounded">{{ .guitar.Slug }}</dd>
+            <dd class="mt-1 text-sm text-gray-900 font-mono bg-gray-100 px-2 py-1 rounded-sm">{{ .guitar.Slug }}</dd>
           </div>
         </dl>
       </div>
