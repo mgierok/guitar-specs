@@ -2,9 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Classic Black & Red Color Scheme */
+:root {
+  --bg: #F8F9FA;
+  --surface: #FFFFFF;
+  --text: #1C1C1C;
+  --muted: #6B7280;
+  --primary: #0D0D0D;
+  --secondary: #E63946;
+  --accent: #FFD166;
+  --ring: #111827;
+}
+
 @layer base {
   body {
-    @apply font-sans text-gray-900 bg-gray-50;
+    @apply font-sans;
+    background-color: var(--bg);
+    color: var(--text);
   }
 }
 
@@ -14,30 +28,72 @@
   }
   
   .btn-primary {
-    @apply bg-blue-600 text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+    background-color: var(--primary);
+    color: var(--surface);
+  }
+  
+  .btn-primary:hover {
+    background-color: var(--ring);
+  }
+  
+  .btn-primary:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ring);
   }
   
   .btn-secondary {
-    @apply bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2;
+    background-color: var(--secondary);
+    color: var(--surface);
+  }
+  
+  .btn-secondary:hover {
+    background-color: #d32f3d;
+  }
+  
+  .btn-secondary:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ring);
   }
   
   .card {
-    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+    background-color: var(--surface);
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
   
   .table {
-    @apply min-w-full divide-y divide-gray-200;
+    @apply min-w-full divide-y;
+    border-color: #e5e7eb;
   }
   
   .table th {
-    @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
+    @apply px-6 py-3 text-left text-xs font-medium uppercase tracking-wider;
+    color: var(--muted);
   }
   
   .table td {
-    @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900;
+    @apply px-6 py-4 whitespace-nowrap text-sm;
+    color: var(--text);
   }
   
-  .table tbody tr {
-    @apply hover:bg-gray-50;
+  .table tbody tr:hover {
+    background-color: #f9fafb;
   }
 }
+
+/* Custom color utilities */
+.bg-primary { background-color: var(--primary); }
+.bg-secondary { background-color: var(--secondary); }
+.bg-accent { background-color: var(--accent); }
+.bg-surface { background-color: var(--surface); }
+
+.text-primary { color: var(--primary); }
+.text-secondary { color: var(--secondary); }
+.text-accent { color: var(--accent); }
+.text-muted { color: var(--muted); }
+
+.border-primary { border-color: var(--primary); }
+.border-secondary { border-color: var(--secondary); }
+.border-accent { border-color: var(--accent); }
