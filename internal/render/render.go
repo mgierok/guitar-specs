@@ -3,6 +3,7 @@ package render
 import (
 	"bytes"
 	"embed"
+	"fmt"
 	"html/template"
 	"io/fs"
 	"net/http"
@@ -30,8 +31,14 @@ func New(tfs embed.FS) *Renderer {
 func NewWithFuncs(tfs embed.FS, funcs template.FuncMap) *Renderer {
 	// Discover template files in the embedded filesystem
 	// Layouts provide the base structure, pages provide the content
-	layouts, _ := fs.Glob(tfs, "templates/layouts/*.tmpl.html")
-	pages, _ := fs.Glob(tfs, "templates/pages/*.tmpl.html")
+	layouts, err := fs.Glob(tfs, "templates/layouts/*.tmpl.html")
+	if err != nil {
+		panic(fmt.Errorf("failed to discover layout templates: %w", err))
+	}
+	pages, err := fs.Glob(tfs, "templates/pages/*.tmpl.html")
+	if err != nil {
+		panic(fmt.Errorf("failed to discover page templates: %w", err))
+	}
 
 	byFile := make(map[string]*template.Template)
 
