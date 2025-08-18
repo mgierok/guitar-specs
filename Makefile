@@ -29,7 +29,8 @@ frontend-build:
 	@if command -v npm >/dev/null 2>&1 && [ -f package.json ]; then \
 		npm run build; \
 	else \
-		./build-frontend.sh; \
+		echo "❌ npm not found, cannot build frontend assets"; \
+		exit 1; \
 	fi
 	@echo "✓ Frontend assets built"
 
