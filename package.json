@@ -5,10 +5,11 @@
   "scripts": {
     "dev": "esbuild web/static/src/main.js --bundle --watch --outdir=web/static/dist/js --format=esm",
     "build": "esbuild web/static/src/main.js --bundle --minify --outdir=web/static/dist/js --format=esm && npm run build:css",
-    "build:css": "npx @tailwindcss/cli -i web/static/src/style.css -o web/static/dist/css/style.css --minify",
-    "watch:css": "npx @tailwindcss/cli -i web/static/src/style.css -o web/static/dist/css/style.css --watch"
+    "build:css": "tailwindcss -i web/static/src/style.css -o web/static/dist/css/style.css --minify",
+    "watch:css": "tailwindcss -i web/static/src/style.css -o web/static/dist/css/style.css --watch"
   },
   "devDependencies": {
+    "@tailwindcss/cli": "^4.1.12",
     "esbuild": "^0.25.9",
     "tailwindcss": "^4.1.12"
   },
