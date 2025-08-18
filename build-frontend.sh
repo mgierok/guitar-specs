@@ -27,7 +27,7 @@ fi
 # Build CSS with Tailwind (if available)
 if command -v tailwindcss >/dev/null 2>&1; then
     echo "→ Building CSS with Tailwind..."
-    tailwindcss -i web/static/src/style.css -o web/static/dist/css/style.css --minify
+    npx @tailwindcss/cli -i web/static/src/style.css -o web/static/dist/css/style.css --minify
 else
     echo "⚠️  Tailwind CSS not found, copying source CSS..."
     cp web/static/src/style.css web/static/dist/css/style.css
