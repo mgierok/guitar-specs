@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -17,9 +18,10 @@ import (
 type Renderer struct {
 	byFile map[string]*template.Template
 	env    string
+	logger *slog.Logger
 }
 
-func New(tfs embed.FS, funcs template.FuncMap, env string) *Renderer {
+func New(tfs embed.FS, funcs template.FuncMap, env string, logger *slog.Logger) *Renderer {
 	// Discover and parse all templates
 	layouts, err := fs.Glob(tfs, "templates/layouts/*.tmpl.html")
 	if err != nil {
@@ -36,7 +38,7 @@ func New(tfs embed.FS, funcs template.FuncMap, env string) *Renderer {
 	for _, page := range pages {
 		name := filepath.Base(page)
 		t := template.New(name).Funcs(funcs)
-		
+
 		// Parse layouts first, then page content
 		t = template.Must(t.ParseFS(tfs, layouts...))
 		t = template.Must(t.ParseFS(tfs, page))
@@ -44,13 +46,13 @@ func New(tfs embed.FS, funcs template.FuncMap, env string) *Renderer {
 		// Store with both full name and short name for flexibility
 		byFile[name] = t
 		byFile[strings.TrimSuffix(name, ".tmpl.html")] = t
-		
-		if env == "development" {
-			fmt.Printf("✓ Parsed template: %s\n", name)
+
+		if logger != nil {
+			logger.Debug("parsed template", "name", name)
 		}
 	}
 
-	return &Renderer{byFile: byFile, env: env}
+	return &Renderer{byFile: byFile, env: env, logger: logger}
 }
 
 func (r *Renderer) HTML(w http.ResponseWriter, req *http.Request, name string, data any) {
@@ -102,27 +104,29 @@ func (r *Renderer) listAvailableTemplates() string {
 	if len(r.byFile) == 0 {
 		return "No templates available"
 	}
-	
+
 	var templates []string
 	for name := range r.byFile {
 		templates = append(templates, name)
 	}
-	
+
 	return strings.Join(templates, "\n- ")
 }
 
 // handleTemplateNotFound handles cases where a template is not found
 func (r *Renderer) handleTemplateNotFound(w http.ResponseWriter, name string) {
-	fmt.Printf("🚨 Template not found: %s\n", name)
-	fmt.Printf("📁 Available templates: %v\n", r.listAvailableTemplates())
-	
+	if r.logger != nil {
+		r.logger.Warn("template not found", "name", name)
+		r.logger.Debug("available templates", "list", r.listAvailableTemplates())
+	}
+
 	if r.env == "development" {
 		http.Error(w, fmt.Sprintf(`Template Not Found: %s
 
 Available Templates:
 %s
 
-This detailed error is shown in development mode only.`, 
+This detailed error is shown in development mode only.`,
 			name, r.listAvailableTemplates()), http.StatusNotFound)
 	} else {
 		http.Error(w, "Page Not Found", http.StatusNotFound)
@@ -131,16 +135,18 @@ This detailed error is shown in development mode only.`,
 
 // handleTemplateError handles template execution errors
 func (r *Renderer) handleTemplateError(w http.ResponseWriter, name string, t *template.Template, err error) {
-	fmt.Printf("🚨 Template execution error for %s: %v\n", name, err)
-	fmt.Printf("📁 Available templates: %s\n", t.DefinedTemplates())
-	
+	if r.logger != nil {
+		r.logger.Error("template execution error", "name", name, "error", err)
+		r.logger.Debug("defined templates", "templates", t.DefinedTemplates())
+	}
+
 	if r.env == "development" {
 		errorMsg := fmt.Sprintf(`Template Error: %v
 
 Template: %s
 Available Templates: %s
 
-This detailed error is shown in development mode only.`, 
+This detailed error is shown in development mode only.`,
 			err, name, t.DefinedTemplates())
 		http.Error(w, errorMsg, http.StatusInternalServerError)
 	} else {

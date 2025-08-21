@@ -2,8 +2,8 @@ package app
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/fs"
+	"log/slog"
 	"strings"
 )
 
@@ -24,29 +24,33 @@ type AssetInfo struct {
 type AssetManager struct {
 	manifest  *AssetManifest
 	enableSRI bool // Flag to enable/disable SRI (useful with Cloudflare compression)
+	logger    *slog.Logger
 }
 
 // NewAssetManager creates a new asset manager from manifest file
-func NewAssetManager(static fs.FS) (*AssetManager, error) {
+func NewAssetManager(static fs.FS, logger *slog.Logger) (*AssetManager, error) {
 	manifestData, err := fs.ReadFile(static, "static/dist/js/manifest.json")
 	if err != nil {
-		return nil, fmt.Errorf("failed to read manifest.json: %w", err)
+		return nil, err
 	}
 
-	fmt.Printf("DEBUG: Raw manifest data: %s\n", string(manifestData))
+	if logger != nil {
+		logger.Debug("read manifest.json", "bytes", len(manifestData))
+	}
 
 	var manifest AssetManifest
 	if err := json.Unmarshal(manifestData, &manifest); err != nil {
-		return nil, fmt.Errorf("failed to parse manifest.json: %w", err)
+		return nil, err
 	}
 
-	fmt.Printf("DEBUG: Parsed manifest: %+v\n", manifest)
-	fmt.Printf("DEBUG: Manifest.Files: %+v\n", manifest.Files)
+	if logger != nil {
+		logger.Debug("parsed manifest", "files", len(manifest.Files))
+	}
 
 	// SRI can be disabled if Cloudflare compresses assets
 	enableSRI := true // Can be controlled via environment variable
 
-	return &AssetManager{manifest: &manifest, enableSRI: enableSRI}, nil
+	return &AssetManager{manifest: &manifest, enableSRI: enableSRI, logger: logger}, nil
 }
 
 // AssetURL returns the hashed URL for an asset
@@ -55,23 +59,22 @@ func (am *AssetManager) AssetURL(assetPath string) string {
 		panic("asset manager not initialized - manifest required")
 	}
 
-	// Debug logging
-	fmt.Printf("DEBUG: Looking for asset: %q\n", assetPath)
-	fmt.Printf("DEBUG: Available assets in manifest:\n")
-	for originalPath := range am.manifest.Files {
-		fmt.Printf("  - %q\n", originalPath)
+	if am.logger != nil {
+		am.logger.Debug("looking for asset", "asset", assetPath)
 	}
 
 	// Look for the asset in manifest
 	for originalPath, info := range am.manifest.Files {
 		if strings.HasSuffix(originalPath, assetPath) {
-			fmt.Printf("DEBUG: Found asset %q -> %q\n", assetPath, info.Path)
+			if am.logger != nil {
+				am.logger.Debug("resolved asset", "asset", assetPath, "path", info.Path)
+			}
 			return info.Path
 		}
 	}
 
 	// Panic if asset not found in manifest
-	panic(fmt.Sprintf("asset not found in manifest: %s", assetPath))
+	panic("asset not found in manifest: " + assetPath)
 }
 
 // AssetSRI returns the SRI hash for an asset
@@ -93,7 +96,7 @@ func (am *AssetManager) AssetSRI(assetPath string) string {
 	}
 
 	// Panic if asset not found in manifest
-	panic(fmt.Sprintf("asset not found in manifest: %s", assetPath))
+	panic("asset not found in manifest: " + assetPath)
 }
 
 // AssetWithSRI returns the asset URL with SRI attribute if available

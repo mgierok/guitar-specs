@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"mime"
 	"net/http"
 	"os"
@@ -26,9 +26,12 @@ func main() {
 	// Load configuration from environment variables and .env files
 	cfg := app.LoadConfig()
 
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
+
 	// Validate HTTPS configuration
 	if err := cfg.ValidateHTTPS(); err != nil {
-		log.Fatalf("HTTPS configuration error: %v", err)
+		logger.Error("HTTPS configuration error", "error", err)
+		os.Exit(1)
 	}
 
 	a := app.New(cfg)
@@ -48,7 +51,7 @@ func main() {
 	// Start HTTPS server
 	serverErr := make(chan error, 1)
 	go func() {
-		log.Printf("HTTPS server starting on %s", cfg.Addr())
+		logger.Info("HTTPS server starting", "addr", cfg.Addr())
 		if err := srv.ListenAndServeTLS(cfg.CertFile, cfg.KeyFile); !errors.Is(err, http.ErrServerClosed) {
 			// Propagate non-shutdown errors to the main goroutine so we can fail fast
 			serverErr <- err
@@ -63,31 +66,32 @@ func main() {
 	select {
 	case err := <-serverErr:
 		if err != nil { // Fail fast on unexpected server errors
-			log.Fatalf("HTTPS server error: %v", err)
+			logger.Error("HTTPS server error", "error", err)
+			os.Exit(1)
 		}
 	case <-quit:
 		// proceed to graceful shutdown below
 	}
 
-	log.Println("shutting down HTTPS server...")
+	logger.Info("shutting down HTTPS server")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	// Graceful shutdown with timeout
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Printf("server shutdown error: %v", err)
+		logger.Error("server shutdown error", "error", err)
 	} else {
-		log.Println("server shutdown completed successfully")
+		logger.Info("server shutdown completed successfully")
 	}
 
 	// Force close if shutdown timeout reached
 	select {
 	case <-shutdownCtx.Done():
-		log.Println("shutdown timeout reached, forcing exit")
+		logger.Warn("shutdown timeout reached, forcing exit")
 		if err := srv.Close(); err != nil {
-			log.Printf("force close error: %v", err)
+			logger.Error("force close error", "error", err)
 		}
 	default:
-		log.Println("all servers stopped gracefully")
+		logger.Info("all servers stopped gracefully")
 	}
 }

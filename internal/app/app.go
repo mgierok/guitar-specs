@@ -65,7 +65,7 @@ func New(cfg Config) *App {
 
 	// Initialize asset manager for SRI and cache busting from build-time manifest
 	// Application cannot start without manifest - fail fast
-	assetManager, err := NewAssetManager(web.StaticFS)
+	assetManager, err := NewAssetManager(web.StaticFS, logger)
 	if err != nil {
 		logger.Error("failed to initialize asset manager - manifest required", "err", err)
 		panic(fmt.Sprintf("asset manager initialization failed: %v", err))
@@ -99,7 +99,7 @@ func New(cfg Config) *App {
 	ren := render.New(web.TemplatesFS, template.FuncMap{
 		"asset": assetFunc,
 		"sri":   sriFunc,
-	}, cfg.Env)
+	}, cfg.Env, logger)
 
 	// Create model store and page handlers
 	store := models.NewStore(pool)
