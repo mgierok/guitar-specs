@@ -22,19 +22,48 @@ func init() {
 	_ = mime.AddExtensionType(".mjs", "text/javascript")
 }
 
+// setupLogger creates a logger with the specified level for runtime operations
+func setupLogger(level string) *slog.Logger {
+	var logLevel slog.Level
+	switch level {
+	case "debug":
+		logLevel = slog.LevelDebug
+	case "info":
+		logLevel = slog.LevelInfo
+	case "warn":
+		logLevel = slog.LevelWarn
+	case "error":
+		logLevel = slog.LevelError
+	default:
+		logLevel = slog.LevelInfo
+	}
+
+	return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: logLevel,
+	}))
+}
+
 func main() {
 	// Load configuration from environment variables and .env files
 	cfg := app.LoadConfig()
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
+	// Create startup logger with full logging (always INFO level)
+	startupLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
+
+	// Create runtime logger with configurable level from environment
+	runtimeLogger := setupLogger(cfg.LogLevel)
 
 	// Validate HTTPS configuration
 	if err := cfg.ValidateHTTPS(); err != nil {
-		logger.Error("HTTPS configuration error", "error", err)
+		startupLogger.Error("HTTPS configuration error", "error", err)
 		os.Exit(1)
 	}
 
-	a := app.New(cfg)
+	startupLogger.Info("application starting", "log_level", cfg.LogLevel, "env", cfg.Env)
+
+	a := app.New(cfg, runtimeLogger)
 	defer a.Close()
 
 	// Create HTTPS server
@@ -51,7 +80,7 @@ func main() {
 	// Start HTTPS server
 	serverErr := make(chan error, 1)
 	go func() {
-		logger.Info("HTTPS server starting", "addr", cfg.Addr())
+		startupLogger.Info("HTTPS server starting", "addr", cfg.Addr())
 		if err := srv.ListenAndServeTLS(cfg.CertFile, cfg.KeyFile); !errors.Is(err, http.ErrServerClosed) {
 			// Propagate non-shutdown errors to the main goroutine so we can fail fast
 			serverErr <- err
@@ -66,32 +95,32 @@ func main() {
 	select {
 	case err := <-serverErr:
 		if err != nil { // Fail fast on unexpected server errors
-			logger.Error("HTTPS server error", "error", err)
+			startupLogger.Error("HTTPS server error", "error", err)
 			os.Exit(1)
 		}
 	case <-quit:
 		// proceed to graceful shutdown below
 	}
 
-	logger.Info("shutting down HTTPS server")
+	startupLogger.Info("shutting down HTTPS server")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	// Graceful shutdown with timeout
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		logger.Error("server shutdown error", "error", err)
+		startupLogger.Error("server shutdown error", "error", err)
 	} else {
-		logger.Info("server shutdown completed successfully")
+		startupLogger.Info("server shutdown completed successfully")
 	}
 
 	// Force close if shutdown timeout reached
 	select {
 	case <-shutdownCtx.Done():
-		logger.Warn("shutdown timeout reached, forcing exit")
+		startupLogger.Warn("shutdown timeout reached, forcing exit")
 		if err := srv.Close(); err != nil {
-			logger.Error("force close error", "error", err)
+			startupLogger.Error("force close error", "error", err)
 		}
 	default:
-		logger.Info("all servers stopped gracefully")
+		startupLogger.Info("all servers stopped gracefully")
 	}
 }

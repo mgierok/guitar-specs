@@ -28,6 +28,12 @@ DB_USER=postgres
 DB_PASSWORD=postgres
 DB_NAME=guitar_specs
 DB_SSLMODE=disable
+
+# Logging (optional)
+# Available levels: debug, info, warn, error
+# During startup/shutdown, full logging is always enabled
+# This setting only affects runtime logging
+LOG_LEVEL=info
 ```
 
 ### 2. SSL Certificates
@@ -65,6 +71,29 @@ The application serves HTTPS on `HOST:PORT` (default `0.0.0.0:8443`).
 - **Alpine.js** - Lightweight JavaScript framework
 - **Tailwind CSS** - Utility-first CSS framework
 - **esbuild** - Fast JavaScript bundler
+
+## Logging Configuration
+
+The application uses a dual-logging approach:
+
+- **Startup/Shutdown Logging**: Always enabled at INFO level for critical application lifecycle events
+- **Runtime Logging**: Configurable via `LOG_LEVEL` environment variable
+
+### Available Log Levels
+- `debug` - Verbose logging for development and troubleshooting
+- `info` - Standard logging level (default)
+- `warn` - Only warnings and errors
+- `error` - Only error messages
+
+### Example Usage
+```bash
+# Set log level via environment variable
+export LOG_LEVEL=debug
+make run
+
+# Or set in .env file
+LOG_LEVEL=warn
+```
 
 ## Database Management
 

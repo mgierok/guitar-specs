@@ -22,7 +22,7 @@ type Config struct {
 
 	// SSL Configuration (required for HTTPS)
 	CertFile string // Path to SSL certificate file
-	KeyFile  string // Path to SSL private key file
+	KeyFile  string // SSL private key file path
 
 	// Database configuration (split parameters)
 	DBHost     string // PostgreSQL host
@@ -41,6 +41,9 @@ type Config struct {
 
 	// Security options
 	TrustedProxies []string // List of trusted proxy IPs for RealIP middleware
+
+	// Logging configuration
+	LogLevel string // Log level for runtime (default: info)
 }
 
 // LoadConfig loads configuration from environment variables with sensible defaults.
@@ -77,6 +80,9 @@ func LoadConfig() Config {
 
 		// Security options
 		TrustedProxies: getStringSlice("TRUSTED_PROXIES", []string{"127.0.0.1", "::1"}),
+
+		// Logging configuration
+		LogLevel: getenv("LOG_LEVEL", "info"),
 	}
 
 	return cfg

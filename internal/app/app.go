@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -33,12 +32,7 @@ type App struct {
 // It sets up the router, middleware stack, handlers, and asset versioning system.
 // The function follows a clear middleware ordering: security → logging → timeout → compression.
 // All middleware is thread-safe and designed for concurrent use.
-func New(cfg Config) *App {
-	// Create structured logger with text output for development and production
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	}))
-
+func New(cfg Config, logger *slog.Logger) *App {
 	// Database connection is mandatory
 	dsn := buildPostgresDSN(cfg)
 	if dsn == "" {
