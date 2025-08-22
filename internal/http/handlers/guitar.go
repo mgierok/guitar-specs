@@ -29,8 +29,15 @@ func (p *Pages) GuitarDetail(w http.ResponseWriter, r *http.Request) {
 	// Attach features to the guitar
 	g.Features = feats
 
-	p.render.HTML(w, r, "guitar.tmpl.html", map[string]any{
-		"title":  g.BrandName + " " + g.Model,
+	// Set content type
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	// Render template using new interface with request context
+	if err := p.render.RenderWithRequest(w, "guitar", r, map[string]any{
+		"Title":  g.BrandName + " " + g.Model,
 		"guitar": g,
-	})
+	}); err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 }

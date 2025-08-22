@@ -9,8 +9,15 @@ func (p *Pages) Guitars(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to query guitars", http.StatusInternalServerError)
 		return
 	}
-	p.render.HTML(w, r, "guitars.tmpl.html", map[string]any{
-		"title":   "Guitars",
+	// Set content type
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	// Render template using new interface with request context
+	if err := p.render.RenderWithRequest(w, "guitars", r, map[string]any{
+		"Title":   "Guitars",
 		"guitars": list,
-	})
+	}); err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 }

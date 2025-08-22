@@ -12,6 +12,11 @@ import (
 	"time"
 
 	"guitar-specs/internal/app"
+	"guitar-specs/internal/config"
+	"guitar-specs/internal/db"
+	"guitar-specs/internal/assets"
+	"guitar-specs/internal/render"
+	"guitar-specs/web"
 )
 
 // ensure consistent MIME types for JavaScript assets across environments.
@@ -44,27 +49,86 @@ func setupLogger(level string) *slog.Logger {
 }
 
 func main() {
-	// Load configuration from environment variables and .env files
-	cfg := app.LoadConfig()
-
 	// Create startup logger with full logging (always INFO level)
 	startupLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	}))
 
+	startupLogger.Info("application starting")
+
+	// 1. Load configuration using new config package
+	configProvider := config.New()
+	cfg := configProvider.Get()
+	
+	if err := configProvider.Validate(); err != nil {
+		startupLogger.Error("configuration validation failed", "error", err)
+		os.Exit(1)
+	}
+
 	// Create runtime logger with configurable level from environment
 	runtimeLogger := setupLogger(cfg.LogLevel)
 
-	// Validate HTTPS configuration
+	// 2. Validate HTTPS configuration
 	if err := cfg.ValidateHTTPS(); err != nil {
 		startupLogger.Error("HTTPS configuration error", "error", err)
 		os.Exit(1)
 	}
 
-	startupLogger.Info("application starting", "log_level", cfg.LogLevel, "env", cfg.Env)
+	startupLogger.Info("configuration loaded successfully", "log_level", cfg.LogLevel, "env", cfg.Env)
 
-	a := app.New(cfg, runtimeLogger)
+	// 3. Initialize database connection
+	startupLogger.Info("initializing database connection")
+	dbConfig := db.DatabaseConfig{
+		Host:     cfg.DBHost,
+		Port:     cfg.DBPort,
+		User:     cfg.DBUser,
+		Password: cfg.DBPassword,
+		Database: cfg.DBName,
+		SSLMode:  cfg.DBSSLMode,
+	}
+	
+	database := db.New(dbConfig)
+	
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
+	if err := database.Connect(ctx); err != nil {
+		startupLogger.Error("database connection failed", "error", err)
+		os.Exit(1)
+	}
+	
+	if err := database.Ping(ctx); err != nil {
+		startupLogger.Error("database ping failed", "error", err)
+		os.Exit(1)
+	}
+	
+	startupLogger.Info("database connected successfully")
+	defer database.Close()
+
+	// 4. Initialize asset manager
+	startupLogger.Info("initializing asset manager")
+	assetManager, err := assets.New(web.StaticFS, runtimeLogger)
+	if err != nil {
+		startupLogger.Error("asset manager initialization failed", "error", err)
+		os.Exit(1)
+	}
+	startupLogger.Info("asset manager initialized successfully")
+
+	// 5. Initialize template renderer
+	startupLogger.Info("initializing template renderer")
+	templateRenderer, err := render.New(web.TemplatesFS, assetManager, cfg.Env, runtimeLogger)
+	if err != nil {
+		startupLogger.Error("template renderer initialization failed", "error", err)
+		os.Exit(1)
+	}
+	startupLogger.Info("template renderer initialized successfully")
+
+	// 6. Create application with all dependencies
+	startupLogger.Info("creating application instance")
+	a := app.New(cfg, runtimeLogger, database, templateRenderer)
 	defer a.Close()
+
+	startupLogger.Info("application instance created successfully")
 
 	// Create HTTPS server
 	srv := &http.Server{

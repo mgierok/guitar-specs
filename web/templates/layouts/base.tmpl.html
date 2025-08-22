@@ -4,7 +4,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>{{.title}}</title>
+	<title>{{.Page.Title}}</title>
 	
 	<!-- Preload critical assets -->
 	<link rel="preload" href="{{ asset "/static/dist/css/style.css" }}" as="style" integrity="{{ sri "/static/dist/css/style.css" }}" crossorigin="anonymous">
@@ -18,8 +18,8 @@
 	<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 		{{block "content" .}}{{end}}
 	</main>
-	            	{{ if .cspNonce }}
-            	<script nonce="{{ .cspNonce }}" type="module" src="{{ asset "/static/dist/js/main.js" }}" integrity="{{ sri "/static/dist/js/main.js" }}" crossorigin="anonymous"></script>
+	            	{{ if .Common.CSPNonce }}
+            	<script nonce="{{ .Common.CSPNonce }}" type="module" src="{{ asset "/static/dist/js/main.js" }}" integrity="{{ sri "/static/dist/js/main.js" }}" crossorigin="anonymous"></script>
             	{{ else }}
             	<script type="module" src="{{ asset "/static/dist/js/main.js" }}" integrity="{{ sri "/static/dist/js/main.js" }}" crossorigin="anonymous"></script>
             	{{ end }}

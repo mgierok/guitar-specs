@@ -3,7 +3,14 @@ package handlers
 import "net/http"
 
 func (p *Pages) About(w http.ResponseWriter, r *http.Request) {
-	p.render.HTML(w, r, "about.tmpl.html", map[string]any{
-		"title": "About Us",
-	})
+	// Set content type
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	// Render template using new interface with request context
+	if err := p.render.RenderWithRequest(w, "about", r, map[string]any{
+		"Title": "About Us",
+	}); err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 }
