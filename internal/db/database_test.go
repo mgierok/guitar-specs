@@ -184,11 +184,11 @@ func TestDatabase_BuildDSN(t *testing.T) {
 	}
 
 	db := &Database{config: config}
-	
+
 	// Use reflection to access private method for testing
 	// This is a bit of a hack, but allows us to test the DSN building logic
 	dsn := db.buildDSN()
-	
+
 	expectedContains := []string{
 		"postgres://",
 		"testuser:testpass@",
@@ -196,7 +196,7 @@ func TestDatabase_BuildDSN(t *testing.T) {
 		"/testdb",
 		"sslmode=disable",
 	}
-	
+
 	for _, expected := range expectedContains {
 		if !contains(dsn, expected) {
 			t.Errorf("Expected DSN to contain '%s', got '%s'", expected, dsn)
@@ -206,10 +206,10 @@ func TestDatabase_BuildDSN(t *testing.T) {
 
 // Helper function to check if string contains substring
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || 
-		(len(s) > len(substr) && (s[:len(substr)] == substr || 
-		s[len(s)-len(substr):] == substr || 
-		containsSubstring(s, substr))))
+	return len(s) >= len(substr) && (s == substr ||
+		(len(s) > len(substr) && (s[:len(substr)] == substr ||
+			s[len(s)-len(substr):] == substr ||
+			containsSubstring(s, substr))))
 }
 
 func containsSubstring(s, substr string) bool {

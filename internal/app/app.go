@@ -26,8 +26,6 @@ type App struct {
 	DB     *pgxpool.Pool     // PostgreSQL connection pool
 }
 
-
-
 // New creates a new application instance with pre-initialized dependencies.
 // This function allows for better dependency injection and testing.
 func New(cfg *config.AppConfig, logger *slog.Logger, database db.DatabaseProvider, renderer render.Renderer) *App {
@@ -91,8 +89,6 @@ func New(cfg *config.AppConfig, logger *slog.Logger, database db.DatabaseProvide
 		DB:     database.GetPool(),
 	}
 }
-
-
 
 // Close releases application resources.
 func (a *App) Close() {

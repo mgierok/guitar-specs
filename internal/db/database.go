@@ -12,9 +12,9 @@ import (
 // Database represents a database connection manager.
 // It implements the DatabaseProvider interface.
 type Database struct {
-	config     DatabaseConfig
-	pool       *pgxpool.Pool
-	connected  bool
+	config      DatabaseConfig
+	pool        *pgxpool.Pool
+	connected   bool
 	connectedAt *time.Time
 }
 

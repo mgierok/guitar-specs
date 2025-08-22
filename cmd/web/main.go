@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"guitar-specs/internal/app"
+	"guitar-specs/internal/assets"
 	"guitar-specs/internal/config"
 	"guitar-specs/internal/db"
-	"guitar-specs/internal/assets"
 	"guitar-specs/internal/render"
 	"guitar-specs/web"
 )
@@ -59,7 +59,7 @@ func main() {
 	// 1. Load configuration using new config package
 	configProvider := config.New()
 	cfg := configProvider.Get()
-	
+
 	if err := configProvider.Validate(); err != nil {
 		startupLogger.Error("configuration validation failed", "error", err)
 		os.Exit(1)
@@ -86,22 +86,22 @@ func main() {
 		Database: cfg.DBName,
 		SSLMode:  cfg.DBSSLMode,
 	}
-	
+
 	database := db.New(dbConfig)
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	if err := database.Connect(ctx); err != nil {
 		startupLogger.Error("database connection failed", "error", err)
 		os.Exit(1)
 	}
-	
+
 	if err := database.Ping(ctx); err != nil {
 		startupLogger.Error("database ping failed", "error", err)
 		os.Exit(1)
 	}
-	
+
 	startupLogger.Info("database connected successfully")
 	defer database.Close()
 
