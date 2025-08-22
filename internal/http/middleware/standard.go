@@ -27,8 +27,14 @@ func SlogLogger(l *slog.Logger) func(next http.Handler) http.Handler {
 				sanitisedPath = sanitisedPath[:100] + "..."
 			}
 
+			// Build a request-scoped logger. Do NOT mutate the shared logger.
+			reqLogger := l
+			if rid, ok := RequestIDFromContext(r.Context()); ok {
+				reqLogger = reqLogger.With("request_id", rid)
+			}
+
 			// Log structured request information for monitoring and debugging
-			l.Info("request",
+			reqLogger.Info("request",
 				"method", r.Method,
 				"path", sanitisedPath,
 				"status", ww.status,

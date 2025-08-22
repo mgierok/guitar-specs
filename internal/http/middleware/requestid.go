@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"net/http"
@@ -21,6 +22,11 @@ func RequestID(next http.Handler) http.Handler {
 		// Add request ID to response headers for client reference
 		w.Header().Set("X-Request-ID", r.Header.Get("X-Request-ID"))
 
+		// Inject request ID into request context for downstream usage
+		if rid := r.Header.Get("X-Request-ID"); rid != "" {
+			r = r.WithContext(WithRequestID(r.Context(), rid))
+		}
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -31,4 +37,22 @@ func generateRequestID() string {
 	bytes := make([]byte, 8)
 	rand.Read(bytes)
 	return hex.EncodeToString(bytes)
+}
+
+// requestIDKey is an unexported type to avoid context key collisions.
+type requestIDKey struct{}
+
+// WithRequestID stores a request ID in the context.
+func WithRequestID(ctx context.Context, id string) context.Context {
+	return context.WithValue(ctx, requestIDKey{}, id)
+}
+
+// RequestIDFromContext retrieves the request ID from the context.
+func RequestIDFromContext(ctx context.Context) (string, bool) {
+	v := ctx.Value(requestIDKey{})
+	if v == nil {
+		return "", false
+	}
+	id, ok := v.(string)
+	return id, ok
 }
