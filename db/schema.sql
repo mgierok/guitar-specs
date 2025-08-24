@@ -21,63 +21,14 @@ SET row_security = off;
 -- Name: public; Type: SCHEMA; Schema: -; Owner: -
 --
 
--- *not* creating schema, since initdb creates it
+CREATE SCHEMA public;
 
 
 --
--- Name: citext; Type: EXTENSION; Schema: -; Owner: -
+-- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: -
 --
 
-CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;
-
-
---
--- Name: EXTENSION citext; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON EXTENSION citext IS 'data type for case-insensitive character strings';
-
-
---
--- Name: pg_trgm; Type: EXTENSION; Schema: -; Owner: -
---
-
-CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
-
-
---
--- Name: EXTENSION pg_trgm; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON EXTENSION pg_trgm IS 'text similarity measurement and index searching based on trigrams';
-
-
---
--- Name: pgcrypto; Type: EXTENSION; Schema: -; Owner: -
---
-
-CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
-
-
---
--- Name: EXTENSION pgcrypto; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON EXTENSION pgcrypto IS 'cryptographic functions';
-
-
---
--- Name: unaccent; Type: EXTENSION; Schema: -; Owner: -
---
-
-CREATE EXTENSION IF NOT EXISTS unaccent WITH SCHEMA public;
-
-
---
--- Name: EXTENSION unaccent; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON EXTENSION unaccent IS 'text search dictionary that removes accents';
+COMMENT ON SCHEMA public IS 'standard public schema';
 
 
 --
@@ -217,30 +168,11 @@ CREATE TABLE public.brands (
 --
 
 CREATE TABLE public.feature_allowed_values (
-    id bigint NOT NULL,
     value text NOT NULL,
-    label text NOT NULL,
-    feature_id uuid NOT NULL
+    feature_id uuid NOT NULL,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    description text
 );
-
-
---
--- Name: feature_allowed_values_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.feature_allowed_values_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: feature_allowed_values_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.feature_allowed_values_id_seq OWNED BY public.feature_allowed_values.id;
 
 
 --
@@ -263,30 +195,12 @@ CREATE TABLE public.features (
 
 CREATE TABLE public.guitar_features (
     guitar_id uuid NOT NULL,
-    allowed_value_id bigint,
     value_text text,
     value_number numeric,
     value_boolean boolean,
-    feature_id uuid NOT NULL
+    feature_id uuid NOT NULL,
+    allowed_value_id uuid
 );
-
-
---
--- Name: guitar_features_resolved; Type: VIEW; Schema: public; Owner: -
---
-
-CREATE VIEW public.guitar_features_resolved AS
- SELECT gf.guitar_id,
-    f.key AS feature_key,
-    f.label AS feature_label,
-    f.kind AS feature_kind,
-    COALESCE(fav.label, gf.value_text) AS value_label,
-    gf.value_number,
-    gf.value_boolean,
-    f.unit
-   FROM ((public.guitar_features gf
-     JOIN public.features f ON ((f.id = gf.feature_id)))
-     LEFT JOIN public.feature_allowed_values fav ON ((fav.id = gf.allowed_value_id)));
 
 
 --
@@ -316,13 +230,6 @@ CREATE TABLE public.shapes (
     meta jsonb DEFAULT '{}'::jsonb NOT NULL,
     CONSTRAINT shapes_slug_check CHECK ((slug OPERATOR(public.~) '^[a-z0-9-]+$'::public.citext))
 );
-
-
---
--- Name: feature_allowed_values id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.feature_allowed_values ALTER COLUMN id SET DEFAULT nextval('public.feature_allowed_values_id_seq'::regclass);
 
 
 --
@@ -393,13 +300,6 @@ CREATE INDEX idx_brands_meta_gin ON public.brands USING gin (meta);
 --
 
 CREATE INDEX idx_brands_name_trgm ON public.brands USING gin (name public.gin_trgm_ops);
-
-
---
--- Name: idx_guitar_features_allowed; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_guitar_features_allowed ON public.guitar_features USING btree (allowed_value_id);
 
 
 --
@@ -564,13 +464,6 @@ GRANT SELECT ON TABLE public.feature_allowed_values TO guitar_specs_ro;
 
 
 --
--- Name: SEQUENCE feature_allowed_values_id_seq; Type: ACL; Schema: public; Owner: -
---
-
-GRANT SELECT ON SEQUENCE public.feature_allowed_values_id_seq TO guitar_specs_ro;
-
-
---
 -- Name: TABLE features; Type: ACL; Schema: public; Owner: -
 --
 
@@ -582,13 +475,6 @@ GRANT SELECT ON TABLE public.features TO guitar_specs_ro;
 --
 
 GRANT SELECT ON TABLE public.guitar_features TO guitar_specs_ro;
-
-
---
--- Name: TABLE guitar_features_resolved; Type: ACL; Schema: public; Owner: -
---
-
-GRANT SELECT ON TABLE public.guitar_features_resolved TO guitar_specs_ro;
 
 
 --

@@ -85,16 +85,16 @@ func (s GuitarStore) List(ctx context.Context) ([]Guitar, error) {
 
 // GuitarFeatureResolved represents a resolved feature value for display.
 type GuitarFeatureResolved struct {
-	FeatureKey   string
-	FeatureLabel string
-	FeatureKind  string
-	ValueDisplay *string
-	EnumValue    *string
-	EnumLabel    *string
-	ValueText    *string
-	ValueNumber  *float64
-	ValueBoolean *bool
-	Unit         *string
+	FeatureKey      string
+	FeatureLabel    string
+	FeatureKind     string
+	ValueDisplay    *string
+	EnumValue       *string
+	EnumDescription *string
+	ValueText       *string
+	ValueNumber     *float64
+	ValueBoolean    *bool
+	Unit            *string
 }
 
 // GetBySlug returns a single guitar by slug with brand and shape names.
@@ -147,7 +147,7 @@ SELECT
   f.label        AS feature_label,
   f.kind::text   AS feature_kind,
   COALESCE(
-    fav.label,
+    fav.value,
     gf.value_text,
     CASE WHEN gf.value_number IS NOT NULL
       THEN (gf.value_number::text || COALESCE(' '||f.unit, '')) END,
@@ -155,7 +155,7 @@ SELECT
       THEN CASE WHEN gf.value_boolean THEN 'true' ELSE 'false' END END
   )                AS value_display,
   fav.value        AS enum_value,
-  fav.label        AS enum_label,
+  fav.description  AS enum_description,
   gf.value_text,
   gf.value_number::float8,
   gf.value_boolean,
@@ -181,7 +181,7 @@ ORDER BY f.label;
 			&r.FeatureKind,
 			&r.ValueDisplay,
 			&r.EnumValue,
-			&r.EnumLabel,
+			&r.EnumDescription,
 			&r.ValueText,
 			&r.ValueNumber,
 			&r.ValueBoolean,

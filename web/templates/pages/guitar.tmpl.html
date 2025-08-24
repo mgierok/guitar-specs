@@ -104,7 +104,7 @@
                     </span>
                   {{ end }}
                 </div>
-                                            {{ if or .ValueText .ValueNumber .ValueBoolean .EnumValue }}
+                            {{ if or .ValueText .ValueNumber .ValueBoolean .EnumValue}}
                             <button
                               onclick="toggleFeatureDetails('{{ .FeatureKey }}')"
                               class="text-gray-400 hover:text-gray-600 transition-colors duration-200">
@@ -142,10 +142,10 @@
                     <dd class="text-gray-900">{{ .EnumValue }}</dd>
                   </div>
                   {{ end }}
-                  {{ if .EnumLabel }}
+                  {{ if .EnumDescription }}
                   <div>
-                    <dt class="font-medium text-gray-500">Enum Label</dt>
-                    <dd class="text-gray-900">{{ .EnumLabel }}</dd>
+                    <dt class="font-medium text-gray-500">Enum Value</dt>
+                    <dd class="text-gray-900">{{ .EnumDescription }}</dd>
                   </div>
                   {{ end }}
                 </dl>
